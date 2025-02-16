@@ -1,12 +1,5 @@
 export const keywords = ["parrot", "jungle", "closeup", "blurry", "photograph"];
 export const connectorWords = ["in", "a", "with", "and", "the", "background"];
-export const finalRoundChoices = [
-  "parrot", "eagle", "toucan",
-  "jungle", "forest", "garden",
-  "closeup", "distant", "aerial",
-  "blurry", "sharp", "focused",
-  "photograph", "painting", "sketch"
-];
 export const originalPrompt = "parrot in a jungle, closeup, blurry background, photograph";
 
 export const checkWord = (word: string, targetWords: string[], position: number, round: number): string => {
@@ -20,7 +13,6 @@ export const checkWord = (word: string, targetWords: string[], position: number,
     if (targetWords.includes(word)) return "yellow";
     return "red";
   } else {
-    if (!finalRoundChoices.includes(word)) return "red";
     if (targetWords[position] === word) return "green";
     if (targetWords.includes(word)) return "yellow";
     return "red";

@@ -1,7 +1,7 @@
 'use client';
 import { useState } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
-import { keywords, connectorWords, finalRoundChoices, originalPrompt, checkWord, generateRecap } from "./utils";
+import { keywords, connectorWords, originalPrompt, checkWord, generateRecap } from "./utils";
 
 const GameLayout = () => {
   const [round, setRound] = useState(1);
