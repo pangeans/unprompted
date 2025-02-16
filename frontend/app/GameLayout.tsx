@@ -51,12 +51,6 @@ const GameLayout = () => {
     setInputValues(Array(5).fill(""));
   };
 
-  const renderInputHelp = () => {
-    if (round <= 5) return "Enter your guess";
-    if (round <= 4) return "You can now use connector words (in, a, with, etc)";
-    return "Choose from the provided words below: " + finalRoundChoices.join(", ");
-  };
-
   const copyToClipboard = () => {
     const recap = generateRecap(guessHistory, round, winningRound);
     navigator.clipboard.writeText(recap);
