@@ -11,7 +11,7 @@ interface PromptSectionProps {
 export const ImageSection = () => (
   <div className="mb-4">
     <Image
-      src="/dummy_image.jpg"
+      src="/jesus.webp"
       alt="AI generated"
       width={300}
       height={300}
@@ -23,16 +23,18 @@ export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, in
   <div className="flex flex-wrap gap-1 mb-2">
     {originalPrompt.split(/(\W+)/).map((word, index) => (
       keywords.includes(word) ? (
-        <input
-          key={index}
-          type="text"
-          value={inputValues[keywords.indexOf(word)]}
-          onChange={(e) => handleInputChange(keywords.indexOf(word), e.target.value)}
-          className="border p-1 text-black w-20"
-          placeholder="Enter word"
-        />
+        <div key={index} className="relative inline-block align-middle -translate-y-1">
+          <input
+            type="text"
+            value={inputValues[keywords.indexOf(word)]}
+            onChange={(e) => handleInputChange(keywords.indexOf(word), e.target.value)}
+            className="p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle "
+            style={{ width: `${word.length + 1}ch` }}
+          />
+          <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>
+        </div>
       ) : (
-        <span key={index} className="text-sm">{word}</span>
+        <span key={index} className="text-sm align-middle inline-block">{word}</span>
       )
     ))}
   </div>

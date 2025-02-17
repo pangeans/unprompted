@@ -1,6 +1,6 @@
-export const keywords = ["parrot", "jungle", "closeup", "blurry", "photograph"];
+export const keywords = ["Jesus", "teaching", "superhero", "taxes", "comic"];
 export const connectorWords = ["in", "a", "with", "and", "the", "background"];
-export const originalPrompt = "parrot in a jungle, closeup, blurry background, photograph";
+export const originalPrompt = "Jesus teaching superhero how to do taxes, comic book style, vintage colors, dramatic shading, classic panels.";
 
 export const checkWord = (word: string, targetWords: string[], position: number, round: number): string => {
   if (round <= 2) {
