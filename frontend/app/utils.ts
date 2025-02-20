@@ -25,12 +25,6 @@ export const generateRecap = (randomIndex: number, guessHistory: { word: string;
       return "⬛";
     }).join("") + "\n";
   });
-  if (winningRound !== null) {
-    recap += `You won in round ${winningRound}!`;
-  }
-  else {
-    recap += "You lose!";
-  }
   return recap;
 };
 
