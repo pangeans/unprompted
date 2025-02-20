@@ -6,31 +6,42 @@ interface PromptSectionProps {
   inputValues: string[];
   handleInputChange: (index: number, value: string) => void;
   keywords: string[];
+  gameEnded: boolean;
 }
 
-export const ImageSection = () => (
+interface ImageSectionProps {
+  image: string | null;
+}
+
+export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
   <div className="mb-4">
-    <Image
-      src="/jesus.webp"
-      alt="AI generated"
-      width={300}
-      height={300}
-    />
+    {image && (
+      <Image
+        src={image}
+        alt="Guess the Prompt!"
+        width={300}
+        height={300}
+      />
+    )}
   </div>
 );
 
-export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords }) => (
+export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded }) => (
   <div className="flex flex-wrap gap-1 mb-2">
     {originalPrompt.split(/(\W+)/).map((word, index) => (
-      keywords.includes(word) ? (
+      keywords.map(keyword => keyword.toLowerCase()).includes(word.toLowerCase()) ? (
         <div key={index} className="relative inline-block align-middle -translate-y-1">
-          <input
-            type="text"
-            value={inputValues[keywords.indexOf(word)]}
-            onChange={(e) => handleInputChange(keywords.indexOf(word), e.target.value)}
-            className="p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle "
-            style={{ width: `${word.length + 1}ch` }}
-          />
+          {gameEnded ? (
+            <span className="bg-green-500 text-white p-1 rounded font-bold">{word}</span>
+          ) : (
+            <input
+              type="text"
+              value={inputValues[keywords.map(keyword => keyword.toLowerCase()).indexOf(word.toLowerCase())]}
+              onChange={(e) => handleInputChange(keywords.map(keyword => keyword.toLowerCase()).indexOf(word.toLowerCase()), e.target.value)}
+              className="p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle "
+              style={{ width: `${word.length + 1}ch` }}
+            />
+          )}
           <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>
         </div>
       ) : (

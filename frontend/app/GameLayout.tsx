@@ -1,9 +1,15 @@
 'use client';
 import { useState } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
-import { keywords, connectorWords, originalPrompt, checkWord, generateRecap } from "./utils";
+import { checkWord, generateRecap } from "./utils";
 
-const GameLayout = () => {
+interface GameLayoutProps {
+  image: string | null;
+  prompt: string;
+  keywords: string[];
+}
+
+const GameLayout: React.FC<GameLayoutProps> = ({ image, prompt, keywords }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(5).fill(""));
   const [guessHistory, setGuessHistory] = useState<{ word: string; color: string }[][]>([]);
@@ -26,11 +32,7 @@ const GameLayout = () => {
       if (round <= 2) {
         result.push({ word, color: checkWord(word, keywords, index, round) });
       } else if (round <= 4) {
-        if (connectorWords.includes(word)) {
-          result.push({ word, color: "gray" });
-        } else {
-          result.push({ word, color: checkWord(word, keywords, keywordIndex++, round) });
-        }
+        result.push({ word, color: checkWord(word, keywords, keywordIndex++, round) });
       } else {
         result.push({ word, color: checkWord(word, keywords, index, round) });
       }
@@ -59,12 +61,13 @@ const GameLayout = () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
-      <ImageSection />
+      <ImageSection image={image} />
       <PromptSection
-        originalPrompt={originalPrompt}
+        originalPrompt={prompt}
         inputValues={inputValues}
         handleInputChange={handleInputChange}
         keywords={keywords}
+        gameEnded={gameEnded}
       />
       {!gameEnded && (
         <>
