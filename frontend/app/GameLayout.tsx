@@ -76,7 +76,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   };
 
   const copyToClipboard = () => {
-    const recap = generateRecap(randomIndex, guessHistory, round, winningRound);
+    const recap = generateRecap(randomIndex, guessHistory, round);
     navigator.clipboard.writeText(recap);
   };
 

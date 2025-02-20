@@ -16,7 +16,7 @@ export const checkWord = (word: string, targetWords: string[], position: number,
   }
 };
 
-export const generateRecap = (randomIndex: number, guessHistory: { word: string; color: string }[][], round: number, winningRound: number | null): string => {
+export const generateRecap = (randomIndex: number, guessHistory: { word: string; color: string }[][], round: number): string => {
   let recap = `Unprompted ${randomIndex} ${round}/5\n`;
   guessHistory.forEach(guess => {
     recap += guess.map(r => {
