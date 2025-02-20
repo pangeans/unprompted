@@ -1,5 +1,5 @@
 'use client';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { checkWord, generateRecap } from "./utils";
 
@@ -12,10 +12,17 @@ interface GameLayoutProps {
 
 const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords }) => {
   const [round, setRound] = useState(1);
-  const [inputValues, setInputValues] = useState<string[]>(Array(5).fill(""));
+  const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
+  const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
   const [guessHistory, setGuessHistory] = useState<{ word: string; color: string }[][]>([]);
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
+
+  // Ensure state arrays update when keywords prop changes
+  useEffect(() => {
+    setInputValues(Array(keywords.length).fill(""));
+    setLockedInputs(Array(keywords.length).fill(false));
+  }, [keywords]);
 
   const handleInputChange = (index: number, value: string) => {
     const newInputValues = [...inputValues];
@@ -39,6 +46,22 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
       }
     });
 
+    // Update locked inputs for correctly guessed words
+    const newLocked = [...lockedInputs];
+    const newInputValues = [...inputValues];
+    result.forEach((res, i) => {
+      if (res.color === 'green') {
+        newLocked[i] = true;
+        // Fix the input to the correct keyword
+        newInputValues[i] = keywords[i];
+      }
+    });
+
+    setLockedInputs(newLocked);
+    // Prepare next round's input: locked values remain, others empty
+    const nextInputs = newLocked.map((locked, i) => locked ? newInputValues[i] : "");
+    setInputValues(nextInputs);
+
     setGuessHistory(prev => [...prev, result]);
 
     const greenMatches = result.filter(r => r.color === "green").length;
@@ -50,8 +73,6 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     } else {
       setRound(prev => prev + 1);
     }
-
-    setInputValues(Array(5).fill(""));
   };
 
   const copyToClipboard = () => {
@@ -69,6 +90,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         handleInputChange={handleInputChange}
         keywords={keywords}
         gameEnded={gameEnded}
+        lockedInputs={lockedInputs}
       />
       {!gameEnded && (
         <>

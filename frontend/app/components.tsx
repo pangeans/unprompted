@@ -7,6 +7,7 @@ interface PromptSectionProps {
   handleInputChange: (index: number, value: string) => void;
   keywords: string[];
   gameEnded: boolean;
+  lockedInputs: boolean[];
 }
 
 interface ImageSectionProps {
@@ -26,28 +27,38 @@ export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
   </div>
 );
 
-export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded }) => (
+export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded, lockedInputs }) => (
   <div className="flex flex-wrap gap-1 mb-2">
-    {originalPrompt.split(/(\W+)/).map((word, index) => (
-      keywords.map(keyword => keyword.toLowerCase()).includes(word.toLowerCase()) ? (
-        <div key={index} className="relative inline-block align-middle -translate-y-1">
-          {gameEnded ? (
-            <span className="bg-green-500 text-white p-1 rounded font-bold">{word}</span>
-          ) : (
+    {originalPrompt.split(/(\W+)/).map((word, idx) => {
+      const lowerKeywords = keywords.map(keyword => keyword.toLowerCase());
+      const wordLower = word.toLowerCase();
+      const keywordIndex = lowerKeywords.indexOf(wordLower);
+      if (keywordIndex !== -1) {
+        const isLocked = lockedInputs[keywordIndex];
+        const disabled = gameEnded || isLocked;
+        const value = gameEnded ? keywords[keywordIndex] : (inputValues[keywordIndex] ?? "");
+        const styleClass = gameEnded ? (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "bg-red-500 text-white p-1 rounded font-bold") : (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle");
+        return (
+          <div key={idx} className="relative inline-block align-middle -translate-y-1">
             <input
               type="text"
-              value={inputValues[keywords.map(keyword => keyword.toLowerCase()).indexOf(word.toLowerCase())]}
-              onChange={(e) => handleInputChange(keywords.map(keyword => keyword.toLowerCase()).indexOf(word.toLowerCase()), e.target.value)}
-              className="p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle "
+              value={value}
+              onChange={e => {
+                if (!disabled) handleInputChange(keywordIndex, e.target.value);
+              }}
+              disabled={disabled}
+              className={styleClass}
               style={{ width: `${word.length + 1}ch` }}
             />
-          )}
-          <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>
-        </div>
-      ) : (
-        <span key={index} className="text-sm align-middle inline-block">{word}</span>
-      )
-    ))}
+            {!disabled && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>}
+          </div>
+        );
+      } else {
+        return (
+          <span key={idx} className="text-sm align-middle inline-block">{word}</span>
+        );
+      }
+    })}
   </div>
 );
 
