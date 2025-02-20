@@ -4,12 +4,13 @@ import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } fro
 import { checkWord, generateRecap } from "./utils";
 
 interface GameLayoutProps {
+  randomIndex: number;
   image: string | null;
   prompt: string;
   keywords: string[];
 }
 
-const GameLayout: React.FC<GameLayoutProps> = ({ image, prompt, keywords }) => {
+const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(5).fill(""));
   const [guessHistory, setGuessHistory] = useState<{ word: string; color: string }[][]>([]);
@@ -54,7 +55,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ image, prompt, keywords }) => {
   };
 
   const copyToClipboard = () => {
-    const recap = generateRecap(guessHistory, round, winningRound);
+    const recap = generateRecap(randomIndex, guessHistory, round, winningRound);
     navigator.clipboard.writeText(recap);
   };
 

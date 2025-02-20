@@ -16,8 +16,8 @@ export const checkWord = (word: string, targetWords: string[], position: number,
   }
 };
 
-export const generateRecap = (guessHistory: { word: string; color: string }[][], round: number, winningRound: number | null): string => {
-  let recap = `Unprompted 1 ${round}/5\n`;
+export const generateRecap = (randomIndex: number, guessHistory: { word: string; color: string }[][], round: number, winningRound: number | null): string => {
+  let recap = `Unprompted ${randomIndex} ${round}/5\n`;
   guessHistory.forEach(guess => {
     recap += guess.map(r => {
       if (r.color === "green") return "🟩";
@@ -57,6 +57,6 @@ export const getRandomImageAndPrompt = () => {
     ["elephants", "playing", "poker", "jungle", "Caravaggio"],
   ];
   const randomIndex = Math.floor(Math.random() * images.length);
-  return { image: images[randomIndex], prompt: prompts[randomIndex], 
+  return { randomIndex: randomIndex, image: images[randomIndex], prompt: prompts[randomIndex], 
     keywords: keywords[randomIndex]};
 };

@@ -4,18 +4,20 @@ import GameLayout from './GameLayout';
 import { getRandomImageAndPrompt } from './utils';
 
 export default function Home() {
+  const [randomIndex, setRandomIndex] = useState<number>(0);
   const [image, setRandomImage] = useState<string | null>(null);
   const [prompt, setRandomPrompt] = useState('');
   const [keywords, setRandomKeywords] = useState<string[]>([]);
 
   useEffect(() => {
-    const { image, prompt, keywords } = getRandomImageAndPrompt();
+    const { randomIndex, image, prompt, keywords } = getRandomImageAndPrompt();
+    setRandomIndex(randomIndex);
     setRandomImage(image);
     setRandomPrompt(prompt);
     setRandomKeywords(keywords);
   }, []);
 
   return (
-    <GameLayout image={image} prompt={prompt} keywords={keywords}/>
+    <GameLayout randomIndex={randomIndex} image={image} prompt={prompt} keywords={keywords}/>
   );
 }
