@@ -1,7 +1,12 @@
 'use client';
-import { useState, useEffect } from "react";
-import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
+import { ImageSection } from "./components/ImageSection";
+import { PromptSection } from "./components/PromptSection";
+import { GuessHistorySection } from "./components/GuessHistorySection";
+import { GameOverSection } from "./components/GameOverSection";
+import { LoadingSpinner } from "./components/LoadingSpinner";
+import { ErrorMessage } from "./components/ErrorMessage";
 import { generateRecap } from "./utils";
+import { useGameState } from "./hooks/useGameState";
 
 interface GameLayoutProps {
   randomIndex: number;
@@ -11,89 +16,31 @@ interface GameLayoutProps {
 }
 
 const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords }) => {
-  const [round, setRound] = useState(1);
-  const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
-  const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
-  const [guessHistory, setGuessHistory] = useState<{ word: string; score: number }[][]>([]);
-  const [gameEnded, setGameEnded] = useState(false);
-  const [winningRound, setWinningRound] = useState<number | null>(null);
-  const [simMappings, setSimMappings] = useState<{ [key: string]: Record<string, number> }>({});
-
-  // Ensure state arrays update when keywords prop changes
-  useEffect(() => {
-    setInputValues(Array(keywords.length).fill(""));
-    setLockedInputs(Array(keywords.length).fill(false));
-  }, [keywords]);
-
-  // Fetch the JSON mapping for each keyword on mount inside GameLayout
-  useEffect(() => {
-    async function fetchMappings() {
-      const mappings: { [key: string]: Record<string, number> } = {};
-      await Promise.all(keywords.map(async (keyword) => {
-        try {
-          const res = await fetch(`/${keyword.toLowerCase()}.json`);
-          if (res.ok) {
-            mappings[keyword] = await res.json();
-          }
-        } catch (err) {
-          console.error(`Error loading mapping for ${keyword}:`, err);
-        }
-      }));
-      setSimMappings(mappings);
-    }
-    fetchMappings();
-  }, [keywords]);
-
-  const handleInputChange = (index: number, value: string) => {
-    const newInputValues = [...inputValues];
-    newInputValues[index] = value;
-    setInputValues(newInputValues);
-  };
-
-  const handleSubmit = () => {
-    if (gameEnded) return;
-
-    const result: { word: string; score: number }[] = [];
-    const newLocked = [...lockedInputs];
-    const newInputValues = [...inputValues];
-
-    inputValues.forEach((word, index) => {
-      const mapping = simMappings[keywords[index]];
-      let score = 0;
-      if (mapping && mapping[word.toLowerCase()] !== undefined) {
-        score = mapping[word.toLowerCase()];
-      }
-      result.push({ word, score });
-
-      // Lock the input if it exactly matches the target keyword
-      if (word.toLowerCase() === keywords[index].toLowerCase()) {
-        newLocked[index] = true;
-        newInputValues[index] = keywords[index];
-      }
-    });
-
-    setLockedInputs(newLocked);
-    // Prepare next round's inputs: locked values remain, others empty
-    const nextInputs = newLocked.map((locked, i) => (locked ? newInputValues[i] : ""));
-    setInputValues(nextInputs);
-
-    setGuessHistory((prev) => [...prev, result]);
-
-    const greenMatches = newLocked.filter((locked) => locked).length;
-    if (round >= 5 || greenMatches === keywords.length) {
-      setGameEnded(true);
-      if (greenMatches === keywords.length) {
-        setWinningRound(round);
-      }
-    } else {
-      setRound((prev) => prev + 1);
-    }
-  };
+  const {
+    round,
+    inputValues,
+    lockedInputs,
+    guessHistory,
+    gameEnded,
+    winningRound,
+    isLoading,
+    error,
+    handleInputChange,
+    handleSubmit
+  } = useGameState(keywords);
 
   const copyToClipboard = () => {
     const recap = generateRecap(randomIndex, guessHistory, round);
     navigator.clipboard.writeText(recap);
   };
+
+  if (error) {
+    return <ErrorMessage message={error} />;
+  }
+
+  if (isLoading) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
@@ -108,14 +55,13 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         lockedInputs={lockedInputs}
       />
       {!gameEnded && (
-        <>
-          <button 
-            onClick={handleSubmit} 
-            className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          >
-            Submit
-          </button>
-        </>
+        <button 
+          onClick={handleSubmit} 
+          className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
+          disabled={isLoading}
+        >
+          Submit
+        </button>
       )}
       <div className="mt-4">
         <p>Round: {round}/5</p>
