@@ -1,6 +1,12 @@
 import React from 'react';
 import Image from 'next/image';
 
+// Import shadcn UI components
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+
 interface PromptSectionProps {
   originalPrompt: string;
   inputValues: string[];
@@ -15,16 +21,18 @@ interface ImageSectionProps {
 }
 
 export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
-  <div className="mb-4">
-    {image && (
-      <Image
-        src={image}
-        alt="Guess the Prompt!"
-        width={300}
-        height={300}
-      />
-    )}
-  </div>
+  <Card className="mb-4">
+    <CardContent className="p-0">
+      {image && (
+        <Image
+          src={image}
+          alt="Guess the Prompt!"
+          width={300}
+          height={300}
+        />
+      )}
+    </CardContent>
+  </Card>
 );
 
 export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded, lockedInputs }) => (
@@ -37,25 +45,21 @@ export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, in
         const isLocked = lockedInputs[keywordIndex];
         const disabled = gameEnded || isLocked;
         const value = gameEnded ? keywords[keywordIndex] : (inputValues[keywordIndex] ?? "");
-        const styleClass = gameEnded ? (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "bg-red-500 text-white p-1 rounded font-bold") : (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle");
         return (
-          <div key={idx} className="relative inline-block align-middle -translate-y-1">
-            <input
-              type="text"
+          <div key={idx} className="relative inline-block">
+            <Input
               value={value}
               onChange={e => {
                 if (!disabled) handleInputChange(keywordIndex, e.target.value);
               }}
               disabled={disabled}
-              className={styleClass}
               style={{ width: `${word.length + 1}ch` }}
             />
-            {!disabled && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>}
           </div>
         );
       } else {
         return (
-          <span key={idx} className="text-sm align-middle inline-block">{word}</span>
+          <span key={idx} className="text-sm inline-block align-middle">{word}</span>
         );
       }
     })}
@@ -70,19 +74,16 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ guessH
   <div className="mt-4 space-y-2">
     {guessHistory.map((guess, roundIndex) => (
       <div key={roundIndex} className="flex gap-2">
-        {guess.map((r, wordIndex) => (
-          <span
-            key={`${roundIndex}-${wordIndex}`}
-            className={`px-2 py-1 rounded ${
-              r.color === "green" ? "bg-green-500" :
-              r.color === "yellow" ? "bg-yellow-500" :
-              r.color === "red" ? "bg-red-500" :
-              "bg-gray-500"
-            } text-white`}
-          >
-            {r.word}
-          </span>
-        ))}
+        {guess.map((r, wordIndex) => {
+          const variant = r.color === 'green' ? 'success' : 
+                          r.color === 'yellow' ? 'warning' : 
+                          r.color === 'red' ? 'destructive' : 'secondary';
+          return (
+            <Badge key={`${roundIndex}-${wordIndex}`} variant={variant}>
+              {r.word}
+            </Badge>
+          );
+        })}
       </div>
     ))}
   </div>
@@ -97,11 +98,8 @@ export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, 
   <div className="mt-4">
     <p className="text-xl font-bold">Game Over!</p>
     {winningRound !== null && <p>You won in round {winningRound}!</p>}
-    <button 
-      onClick={copyToClipboard} 
-      className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mt-2"
-    >
+    <Button onClick={copyToClipboard} className="mt-2">
       Copy Recap to Clipboard
-    </button>
+    </Button>
   </div>
 );
