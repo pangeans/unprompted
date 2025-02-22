@@ -33,7 +33,7 @@ def generate_nearest_words_optimized(keywords, nlp, top_n):
     # Precompute keyword vectors and their norms
     keyword_vectors = {}
     keyword_norms = {}
-    results = {kw: [] for kw in keywords}
+    results = {kw: [(kw, 1.0)] for kw in keywords}
     for kw in keywords:
         doc = nlp(kw)
         if not doc or not doc[0].has_vector:

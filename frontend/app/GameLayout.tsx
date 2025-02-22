@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
-import { checkWord, generateRecap } from "./utils";
+import { generateRecap } from "./utils";
 
 interface GameLayoutProps {
   randomIndex: number;
@@ -14,14 +14,34 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
-  const [guessHistory, setGuessHistory] = useState<{ word: string; color: string }[][]>([]);
+  const [guessHistory, setGuessHistory] = useState<{ word: string; score: number }[][]>([]);
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
+  const [simMappings, setSimMappings] = useState<{ [key: string]: Record<string, number> }>({});
 
   // Ensure state arrays update when keywords prop changes
   useEffect(() => {
     setInputValues(Array(keywords.length).fill(""));
     setLockedInputs(Array(keywords.length).fill(false));
+  }, [keywords]);
+
+  // Fetch the JSON mapping for each keyword on mount inside GameLayout
+  useEffect(() => {
+    async function fetchMappings() {
+      const mappings: { [key: string]: Record<string, number> } = {};
+      await Promise.all(keywords.map(async (keyword) => {
+        try {
+          const res = await fetch(`/${keyword.toLowerCase()}.json`);
+          if (res.ok) {
+            mappings[keyword] = await res.json();
+          }
+        } catch (err) {
+          console.error(`Error loading mapping for ${keyword}:`, err);
+        }
+      }));
+      setSimMappings(mappings);
+    }
+    fetchMappings();
   }, [keywords]);
 
   const handleInputChange = (index: number, value: string) => {
@@ -33,45 +53,40 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   const handleSubmit = () => {
     if (gameEnded) return;
 
-    const result: { word: string; color: string }[] = [];
-    let keywordIndex = 0;
-
-    inputValues.forEach((word, index) => {
-      if (round <= 2) {
-        result.push({ word, color: checkWord(word, keywords, index, round) });
-      } else if (round <= 4) {
-        result.push({ word, color: checkWord(word, keywords, keywordIndex++, round) });
-      } else {
-        result.push({ word, color: checkWord(word, keywords, index, round) });
-      }
-    });
-
-    // Update locked inputs for correctly guessed words
+    const result: { word: string; score: number }[] = [];
     const newLocked = [...lockedInputs];
     const newInputValues = [...inputValues];
-    result.forEach((res, i) => {
-      if (res.color === 'green') {
-        newLocked[i] = true;
-        // Fix the input to the correct keyword
-        newInputValues[i] = keywords[i];
+
+    inputValues.forEach((word, index) => {
+      const mapping = simMappings[keywords[index]];
+      let score = 0;
+      if (mapping && mapping[word.toLowerCase()] !== undefined) {
+        score = mapping[word.toLowerCase()];
+      }
+      result.push({ word, score });
+
+      // Lock the input if it exactly matches the target keyword
+      if (word.toLowerCase() === keywords[index].toLowerCase()) {
+        newLocked[index] = true;
+        newInputValues[index] = keywords[index];
       }
     });
 
     setLockedInputs(newLocked);
-    // Prepare next round's input: locked values remain, others empty
-    const nextInputs = newLocked.map((locked, i) => locked ? newInputValues[i] : "");
+    // Prepare next round's inputs: locked values remain, others empty
+    const nextInputs = newLocked.map((locked, i) => (locked ? newInputValues[i] : ""));
     setInputValues(nextInputs);
 
-    setGuessHistory(prev => [...prev, result]);
+    setGuessHistory((prev) => [...prev, result]);
 
-    const greenMatches = result.filter(r => r.color === "green").length;
-    if (round >= 5 || (greenMatches === keywords.length)) {
+    const greenMatches = newLocked.filter((locked) => locked).length;
+    if (round >= 5 || greenMatches === keywords.length) {
       setGameEnded(true);
       if (greenMatches === keywords.length) {
         setWinningRound(round);
       }
     } else {
-      setRound(prev => prev + 1);
+      setRound((prev) => prev + 1);
     }
   };
 
@@ -104,7 +119,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
       )}
       <div className="mt-4">
         <p>Round: {round}/5</p>
-        <GuessHistorySection guessHistory={guessHistory} />
+        <GuessHistorySection guessHistory={guessHistory} keywords={keywords} />
         {gameEnded && <GameOverSection winningRound={winningRound} copyToClipboard={copyToClipboard} />}
       </div>
     </div>

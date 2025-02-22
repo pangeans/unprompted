@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Image from 'next/image';
 
 interface PromptSectionProps {
@@ -28,27 +28,6 @@ export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
 );
 
 export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded, lockedInputs }) => {
-  // State to hold similarity mappings loaded from JSON files
-  const [simMappings, setSimMappings] = useState<{ [key: string]: Record<string, number> }>({});
-
-  // Fetch the JSON mapping for each keyword on mount
-  useEffect(() => {
-    async function fetchMappings() {
-      const mappings: { [key: string]: Record<string, number> } = {};
-      await Promise.all(keywords.map(async (keyword) => {
-        try {
-          const res = await fetch(`/${keyword.toLowerCase()}.json`);
-          if (res.ok) {
-            mappings[keyword] = await res.json();
-          }
-        } catch (err) {
-          console.error(`Error loading mapping for ${keyword}:`, err);
-        }
-      }));
-      setSimMappings(mappings);
-    }
-    fetchMappings();
-  }, [keywords]);
   return (
     <div className="flex flex-wrap gap-1 mb-2">
       {originalPrompt.split(/(\W+)/).map((word, idx) => {
@@ -97,7 +76,7 @@ export const interpolateColor = (color1: {r: number, g: number, b: number}, colo
 export const getGradientColor = (score: number): string => {
   // Adjusted expected score range for normalization: from 0.0 (red) to 0.7 (green)
   const minThreshold = 0.0;
-  const maxThreshold = 0.7;
+  const maxThreshold = 1.0;
   // Normalize the score to a 0-1 range based on the threshold
   const normalized = Math.min(1, Math.max(0, (score - minThreshold) / (maxThreshold - minThreshold)));
 
@@ -122,29 +101,35 @@ interface GuessHistoryItem {
 
 interface GuessHistorySectionProps {
   guessHistory: GuessHistoryItem[][];
+  keywords: string[];
 }
 
-export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ guessHistory }) => (
-  <div className="mt-4 space-y-2">
-    {guessHistory.map((guess, roundIndex) => (
-      <div key={roundIndex} className="flex gap-2">
-        {guess.map((r, wordIndex) => {
-          // Ensure score is a valid number; fallback to 0 if not
-          const score = typeof r.score === 'number' ? r.score : 0;
-          return (
-            <span
-              key={`${roundIndex}-${wordIndex}`}
-              className="px-2 py-1 rounded text-white"
-              style={{ backgroundColor: getGradientColor(score) }}
-            >
-              {r.word}
-            </span>
-          );
-        })}
-      </div>
-    ))}
-  </div>
-);
+// Remove simMappings state and its useEffect as they are no longer used
+export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ guessHistory, keywords }) => {
+  return (
+    <div className="mt-4 space-y-2">
+      {guessHistory.map((guess, roundIndex) => (
+        <div key={roundIndex} className="flex gap-2">
+          {guess.map((r, wordIndex) => {
+            const score = typeof r.score === 'number' ? r.score : 0;
+            // If the guessed word matches its corresponding keyword exactly (ignoring case), use green color
+            const matching = r.word.toLowerCase() === keywords[wordIndex].toLowerCase();
+            const bgColor = matching ? 'rgb(34, 197, 94)' : getGradientColor(score);
+            return (
+              <span
+                key={`${roundIndex}-${wordIndex}`}
+                className="px-2 py-1 rounded text-white"
+                style={{ backgroundColor: bgColor }}
+              >
+                {r.word}
+              </span>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 interface GameOverSectionProps {
   winningRound: number | null;

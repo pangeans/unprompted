@@ -1,27 +1,9 @@
-export const checkWord = (word: string, targetWords: string[], position: number, round: number): string => {
-  const lowerCaseWord = word.toLowerCase();
-  const lowerCaseTargetWords = targetWords.map(target => target.toLowerCase());
-  if (round <= 2) {
-    if (lowerCaseTargetWords[position] === lowerCaseWord) return "green";
-    if (lowerCaseTargetWords.includes(lowerCaseWord)) return "yellow";
-    return "red";
-  } else if (round <= 4) {
-    if (lowerCaseTargetWords[position] === lowerCaseWord) return "green";
-    if (lowerCaseTargetWords.includes(lowerCaseWord)) return "yellow";
-    return "red";
-  } else {
-    if (lowerCaseTargetWords[position] === lowerCaseWord) return "green";
-    if (lowerCaseTargetWords.includes(lowerCaseWord)) return "yellow";
-    return "red";
-  }
-};
-
-export const generateRecap = (randomIndex: number, guessHistory: { word: string; color: string }[][], round: number): string => {
+export const generateRecap = (randomIndex: number, guessHistory: { word: string; score: number }[][], round: number): string => {
   let recap = `Unprompted ${randomIndex} ${round}/5\n`;
   guessHistory.forEach(guess => {
     recap += guess.map(r => {
-      if (r.color === "green") return "🟩";
-      if (r.color === "yellow") return "🟨";
+      if (r.score === 1) return "🟩";
+      if (r.score > 0 && r.score < 1) return "🟨";
       return "⬛";
     }).join("") + "\n";
   });
