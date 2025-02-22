@@ -1,0 +1,6 @@
+{
+    "image": "/random-2.webp",
+    "prompt": "Red dragon sleeping on a pile of NAND flash memory chips, realistic, detailed scales, high-tech theme, dramatic lighting.",
+    "keywords": ["dragon", "sleeping", "NAND", "flash", "memory"],
+    "similarity_files": ["/dragon.json", "/sleeping.json", "/nand.json", "/flash.json", "/memory.json"]
+}

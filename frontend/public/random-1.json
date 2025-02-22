@@ -1,0 +1,6 @@
+{
+    "image": "/random-1.webp",
+    "prompt": "Accountant doing taxes on the moon, comic book style, vintage colors, dramatic shading, space setting.",
+    "keywords": ["Accountant", "taxes", "moon", "comic", "space"],
+    "similarity_files": ["/accountant.json", "/taxes.json", "/moon.json", "/comic.json", "/space.json"]
+}

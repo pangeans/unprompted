@@ -8,40 +8,21 @@ interface GameLayoutProps {
   image: string | null;
   prompt: string;
   keywords: string[];
+  similarityDict: Record<string, Record<string, number>>;
 }
 
-const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords }) => {
+const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords, similarityDict }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
   const [guessHistory, setGuessHistory] = useState<{ word: string; score: number }[][]>([]);
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
-  const [simMappings, setSimMappings] = useState<{ [key: string]: Record<string, number> }>({});
 
   // Ensure state arrays update when keywords prop changes
   useEffect(() => {
     setInputValues(Array(keywords.length).fill(""));
     setLockedInputs(Array(keywords.length).fill(false));
-  }, [keywords]);
-
-  // Fetch the JSON mapping for each keyword on mount inside GameLayout
-  useEffect(() => {
-    async function fetchMappings() {
-      const mappings: { [key: string]: Record<string, number> } = {};
-      await Promise.all(keywords.map(async (keyword) => {
-        try {
-          const res = await fetch(`/${keyword.toLowerCase()}.json`);
-          if (res.ok) {
-            mappings[keyword] = await res.json();
-          }
-        } catch (err) {
-          console.error(`Error loading mapping for ${keyword}:`, err);
-        }
-      }));
-      setSimMappings(mappings);
-    }
-    fetchMappings();
   }, [keywords]);
 
   const handleInputChange = (index: number, value: string) => {
@@ -58,15 +39,17 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     const newInputValues = [...inputValues];
 
     inputValues.forEach((word, index) => {
-      const mapping = simMappings[keywords[index]];
       let score = 0;
-      if (mapping && mapping[word.toLowerCase()] !== undefined) {
-        score = mapping[word.toLowerCase()];
+      const keyword = keywords[index].toLowerCase();
+      const wordLower = word.toLowerCase();
+      
+      if (similarityDict[keyword] && similarityDict[keyword][wordLower] !== undefined) {
+        score = similarityDict[keyword][wordLower];
       }
       result.push({ word, score });
 
       // Lock the input if it exactly matches the target keyword
-      if (word.toLowerCase() === keywords[index].toLowerCase()) {
+      if (wordLower === keyword) {
         newLocked[index] = true;
         newInputValues[index] = keywords[index];
       }

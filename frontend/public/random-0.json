@@ -1,0 +1,6 @@
+{
+    "image": "/random-0.webp",
+    "prompt": "Giant duck eating apples, realistic, detailed feathers, natural lighting, vibrant colors.",
+    "keywords": ["Giant", "duck", "eating", "apples", "realistic"],
+    "similarity_files": ["/giant.json", "/duck.json", "/eating.json", "/apples.json", "/realistic.json"]
+}
