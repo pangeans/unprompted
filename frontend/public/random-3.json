@@ -1,6 +1,6 @@
 {
     "image": "/random-3.webp",
-    "prompt": "Santa Claus arm wrestling the Easter Bunny underwater, anime and manga style, static action, vibrant colors, clean lines.",
-    "keywords": ["Santa", "Claus", "Easter", "Bunny", "underwater"],
-    "similarity_files": ["/santa.json", "/claus.json", "/easter.json", "/bunny.json", "/underwater.json"]
+    "prompt": "A distressed female woodcarver, sculpting a wooden engine. Art Style: Hyper-realistic photography.",
+    "keywords": ["distressed", "woodcarver", "sculpting", "wooden", "engine"],
+    "similarity_files": ["/distressed.json", "/woodcarver.json", "/sculpting.json", "/wooden.json", "/engine.json"]
 }

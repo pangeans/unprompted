@@ -1,6 +1,0 @@
-{
-    "image": "/random-4.webp",
-    "prompt": "Very cute elephants playing poker in the jungle, Caravaggio style, dramatic lighting, rich textures, baroque realism.",
-    "keywords": ["elephants", "playing", "poker", "jungle", "Caravaggio"],
-    "similarity_files": ["/elephants.json", "/playing.json", "/poker.json", "/jungle.json", "/caravaggio.json"]
-}

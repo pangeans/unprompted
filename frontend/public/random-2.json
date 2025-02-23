@@ -1,6 +1,6 @@
 {
     "image": "/random-2.webp",
-    "prompt": "Red dragon sleeping on a pile of NAND flash memory chips, realistic, detailed scales, high-tech theme, dramatic lighting.",
-    "keywords": ["dragon", "sleeping", "NAND", "flash", "memory"],
-    "similarity_files": ["/dragon.json", "/sleeping.json", "/nand.json", "/flash.json", "/memory.json"]
+    "prompt": "An elderly man is knitting by an large onion. In the background, Jesus stands in front of a woman in a hospital bed. Setting: desert. Art Style: Hyper-realistic surrealism.",
+    "keywords": ["elderly", "knitting", "onion", "Jesus", "hospital"],
+    "similarity_files": ["/elderly.json", "/knitting.json", "/onion.json", "/Jesus.json", "/hospital.json"]
 }

@@ -74,9 +74,10 @@ def generate_nearest_words_optimized(keywords, nlp, top_n):
 def main():
     num = 1000
     keywords = [
-        "giant", "duck", "eating", "apples", "realistic", "accountant", "taxes", "moon",
-        "comic", "space", "dragon", "sleeping", "nand", "flash", "memory", "santa", "claus",
-        "easter", "bunny", "underwater", "elephants", "playing", "poker", "jungle", "caravaggio"
+        "pizza", "wings", "chili", "milkshake", "caviar",
+        "guide", "hatch", "fry", "egg", "cookbook",
+        "onion", "elderly", "knitting", "Jesus", "desert",
+        "distressed", "woodcarver", "sculpting", "wooden", "engine"
     ]
 
     # Load the spaCy model (this may take a few seconds)

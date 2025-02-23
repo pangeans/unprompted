@@ -1,6 +1,6 @@
 {
     "image": "/random-0.webp",
-    "prompt": "Giant duck eating apples, realistic, detailed feathers, natural lighting, vibrant colors.",
-    "keywords": ["Giant", "duck", "eating", "apples", "realistic"],
-    "similarity_files": ["/giant.json", "/duck.json", "/eating.json", "/apples.json", "/realistic.json"]
+    "prompt": "A plate of pizza flavored wings. A chili milkshake topped with whipped cream and caviar. Art Style: Hyper-realistic food photography.",
+    "keywords": ["pizza", "wings", "chili", "milkshake", "caviar"],
+    "similarity_files": ["/pizza.json", "/wings.json", "/chili.json", "/milkshake.json", "/caviar.json"]
 }
