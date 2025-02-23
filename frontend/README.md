@@ -1,36 +1,67 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# unprompted Frontend
+
+The frontend web application for the unprompted game, built with Next.js 15, React 19, and TailwindCSS.
+
+## Features
+
+- Real-time word similarity matching
+- Responsive design with shadcn/ui components
+- Dark mode support
+- Shareable game results
+- Progressive game mechanics across 5 rounds
+
+## Tech Stack
+
+- Next.js 15 with App Router
+- React 19
+- TailwindCSS for styling
+- shadcn/ui for UI components
+- Vercel Analytics
 
 ## Getting Started
 
-First, run the development server:
-
+1. Install dependencies:
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. Run the development server:
+```bash
+pnpm dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. Open [http://localhost:3000](http://localhost:3000) to play the game
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure
 
-## Learn More
+```
+frontend/
+├── app/                # Next.js app router
+│   ├── components.tsx  # Game components
+│   ├── GameLayout.tsx # Main game logic
+│   ├── page.tsx       # Entry point
+│   └── utils.ts       # Helper functions
+├── components/        # Reusable UI components
+├── lib/              # Utility functions
+└── public/           # Static files and game data
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Game Mechanics
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The game uses semantic similarity to match player guesses with target keywords. Each guess is evaluated against pre-computed embeddings to determine how close it is to the correct answer.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Green highlights indicate exact matches
+- Color gradients show how close a guess is to the target word
+- Input fields lock when correct words are guessed
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The app is optimized for deployment on Vercel. Simply push to your repository and connect it to Vercel for automatic deployments.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a Pull Request
