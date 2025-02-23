@@ -1,0 +1,6 @@
+{
+    "image": "/random-0.webp",
+    "prompt": "A plate of pizza flavored wings. A chili milkshake topped with whipped cream and caviar. Art Style: Hyper-realistic food photography.",
+    "keywords": ["pizza", "wings", "chili", "milkshake", "caviar"],
+    "similarity_files": ["/pizza.json", "/wings.json", "/chili.json", "/milkshake.json", "/caviar.json"]
+}

@@ -1,0 +1,6 @@
+{
+    "image": "/random-2.webp",
+    "prompt": "An elderly man is knitting by an large onion. In the background, Jesus stands in front of a woman in a hospital bed. Setting: desert. Art Style: Hyper-realistic surrealism.",
+    "keywords": ["elderly", "knitting", "onion", "Jesus", "hospital"],
+    "similarity_files": ["/elderly.json", "/knitting.json", "/onion.json", "/Jesus.json", "/hospital.json"]
+}
