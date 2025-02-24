@@ -1,67 +1,52 @@
-# unprompted Frontend
+# Unprompted Frontend Application Documentation
 
-The frontend web application for the unprompted game, built with Next.js 15, React 19, and TailwindCSS.
+This document provides a comprehensive breakdown of the frontend application architecture and components.
 
-## Features
-
-- Real-time word similarity matching
-- Responsive design with shadcn/ui components
-- Dark mode support
-- Shareable game results
-- Progressive game mechanics across 5 rounds
-
-## Tech Stack
-
-- Next.js 15 with App Router
-- React 19
-- TailwindCSS for styling
-- shadcn/ui for UI components
-- Vercel Analytics
-
-## Getting Started
-
-1. Install dependencies:
-```bash
-pnpm install
-```
-
-2. Run the development server:
-```bash
-pnpm dev
-```
-
-3. Open [http://localhost:3000](http://localhost:3000) to play the game
-
-## Project Structure
+## Application Structure
 
 ```
 frontend/
-├── app/                # Next.js app router
-│   ├── components.tsx  # Game components
-│   ├── GameLayout.tsx # Main game logic
-│   ├── page.tsx       # Entry point
-│   └── utils.ts       # Helper functions
-├── components/        # Reusable UI components
-├── lib/              # Utility functions
-└── public/           # Static files and game data
+├── app/                    # Next.js app directory
+│   ├── components.tsx     # Core game components
+│   ├── GameLayout.tsx    # Main game layout component
+│   ├── page.tsx         # Root page component
+│   └── utils.ts         # Game utility functions
+├── components/           # Shared UI components
+│   └── ui/             # shadcn/ui components
+└── lib/                # Utility libraries
+    └── utils.ts       # General utility functions
 ```
 
-## Game Mechanics
+## Component Documentation
 
-The game uses semantic similarity to match player guesses with target keywords. Each guess is evaluated against pre-computed embeddings to determine how close it is to the correct answer.
+### Main Components
+- [GameLayout Component](docs/GameLayout.md) - Main game orchestration component
+- [Components](docs/Components.md) - Core game components (ImageSection, PromptSection, etc.)
+- [Page Component](docs/Page.md) - Root page component
 
-- Green highlights indicate exact matches
-- Color gradients show how close a guess is to the target word
-- Input fields lock when correct words are guessed
+### Utilities
+- [Game Utils](docs/GameUtils.md) - Game-specific utility functions 
+- [Lib Utils](docs/LibUtils.md) - General utility functions
 
-## Deployment
+## Technology Stack
 
-The app is optimized for deployment on Vercel. Simply push to your repository and connect it to Vercel for automatic deployments.
+- **Framework**: Next.js
+- **UI Components**: shadcn/ui
+- **Styling**: Tailwind CSS
+- **State Management**: React hooks
 
-## Contributing
+## Key Features
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+1. Image-based prompt guessing game
+2. Interactive input fields with realtime feedback
+3. Score tracking and game history
+4. Alternate layout options
+5. Copy results functionality
+
+## Game Flow
+
+1. Load random image and prompt
+2. Player inputs guesses for keywords
+3. Real-time validation and scoring
+4. Progress tracking through 5 rounds
+5. Game completion with sharable results

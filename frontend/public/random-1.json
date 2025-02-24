@@ -1,6 +1,6 @@
 {
     "image": "/random-1.webp",
-    "prompt": "Step-by-step visual guide on how to hatch and fry an egg. Art Style: Professional cookbook drawings, individual panels..",
-    "keywords": ["guide", "hatch", "fry", "egg", "cookbook"],
-    "similarity_files": ["/guide.json", "/grow.json", "/fry.json", "/egg.json", "/cookbook.json"]
+    "prompt": "Step-by-step visual guide on how to harvest and fry an egg. Art Style: Professional cookbook drawings, individual panels..",
+    "keywords": ["guide", "harvest", "fry", "egg", "cookbook"],
+    "similarity_files": ["/guide.json", "/harvest.json", "/fry.json", "/egg.json", "/cookbook.json"]
 }

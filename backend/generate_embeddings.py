@@ -75,7 +75,7 @@ def main():
     num = 1000
     keywords = [
         "pizza", "wings", "chili", "milkshake", "caviar",
-        "guide", "hatch", "fry", "egg", "cookbook",
+        "guide", "harvest", "fry", "egg", "cookbook",
         "onion", "elderly", "knitting", "Jesus", "desert",
         "distressed", "woodcarver", "sculpting", "wooden", "engine"
     ]

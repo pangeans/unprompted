@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
+import { Button } from "@/components/ui/button";
 import { generateRecap } from "./utils";
 
 interface GameLayoutProps {
@@ -15,61 +16,96 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
+  const [invalidInputs, setInvalidInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
   const [guessHistory, setGuessHistory] = useState<{ word: string; score: number }[][]>([]);
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
 
-  // Ensure state arrays update when keywords prop changes
+  // Reset states when keywords change
   useEffect(() => {
     setInputValues(Array(keywords.length).fill(""));
     setLockedInputs(Array(keywords.length).fill(false));
+    setInvalidInputs(Array(keywords.length).fill(false));
   }, [keywords]);
 
   const handleInputChange = (index: number, value: string) => {
     const newInputValues = [...inputValues];
     newInputValues[index] = value;
     setInputValues(newInputValues);
+
+    // Clear invalid state when user types
+    if (invalidInputs[index]) {
+      const newInvalidInputs = [...invalidInputs];
+      newInvalidInputs[index] = false;
+      setInvalidInputs(newInvalidInputs);
+    }
   };
 
   const handleSubmit = () => {
     if (gameEnded) return;
 
+    // Check for empty fields
+    const emptyFields = inputValues.map((value, index) => 
+      !value.trim() && !lockedInputs[index]
+    );
+    
+    if (emptyFields.some(isEmpty => isEmpty)) {
+      setInvalidInputs(emptyFields);
+      return;
+    }
+
     const result: { word: string; score: number }[] = [];
     const newLocked = [...lockedInputs];
     const newInputValues = [...inputValues];
 
+    // Helper function to clean words for comparison
+    const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
+
     inputValues.forEach((word, index) => {
       let score = 0;
-      const keyword = keywords[index].toLowerCase();
-      const wordLower = word.toLowerCase();
+      const keyword = cleanWord(keywords[index]);
+      const wordLower = cleanWord(word);
       
-      if (similarityDict[keyword] && similarityDict[keyword][wordLower] !== undefined) {
-        score = similarityDict[keyword][wordLower];
+      // Check similarity dictionary with cleaned words
+      const similarityEntry = similarityDict[keyword];
+      if (similarityEntry) {
+        // Try to find the score with the cleaned word
+        for (const [dictWord, dictScore] of Object.entries(similarityEntry)) {
+          if (cleanWord(dictWord) === wordLower) {
+            score = dictScore;
+            break;
+          }
+        }
       }
+
       result.push({ word, score });
 
       // Lock the input if it exactly matches the target keyword
       if (wordLower === keyword) {
         newLocked[index] = true;
-        newInputValues[index] = keywords[index];
+        newInputValues[index] = keywords[index]; // Use original casing
       }
     });
 
     setLockedInputs(newLocked);
+    
     // Prepare next round's inputs: locked values remain, others empty
-    const nextInputs = newLocked.map((locked, i) => (locked ? newInputValues[i] : ""));
+    const nextInputs = newLocked.map((locked, i) => 
+      locked ? newInputValues[i] : ""
+    );
     setInputValues(nextInputs);
+    setInvalidInputs(Array(keywords.length).fill(false)); // Reset invalid states
 
-    setGuessHistory((prev) => [...prev, result]);
+    setGuessHistory(prev => [...prev, result]);
 
-    const greenMatches = newLocked.filter((locked) => locked).length;
+    const greenMatches = newLocked.filter(locked => locked).length;
     if (round >= 5 || greenMatches === keywords.length) {
       setGameEnded(true);
       if (greenMatches === keywords.length) {
         setWinningRound(round);
       }
     } else {
-      setRound((prev) => prev + 1);
+      setRound(prev => prev + 1);
     }
   };
 
@@ -89,21 +125,29 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         keywords={keywords}
         gameEnded={gameEnded}
         lockedInputs={lockedInputs}
+        invalidInputs={invalidInputs}
       />
-      {!gameEnded && (
-        <>
-          <button 
-            onClick={handleSubmit} 
-            className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600"
-          >
-            Submit
-          </button>
-        </>
-      )}
-      <div className="mt-4">
-        <p>Round: {round}/5</p>
-        <GuessHistorySection guessHistory={guessHistory} keywords={keywords} />
-        {gameEnded && <GameOverSection winningRound={winningRound} copyToClipboard={copyToClipboard} />}
+      <Button 
+        onClick={handleSubmit}
+        type="submit"
+        disabled={gameEnded || inputValues.some((value, index) => !value.trim() && !lockedInputs[index])}
+        variant="default"
+        size="lg"
+        className="mt-2 hidden"
+      >
+        Submit
+      </Button>
+      <div className="w-full">
+        <GuessHistorySection 
+          guessHistory={guessHistory} 
+          keywords={keywords}
+        />
+        {gameEnded && (
+          <GameOverSection 
+            winningRound={winningRound} 
+            copyToClipboard={copyToClipboard} 
+          />
+        )}
       </div>
     </div>
   );
