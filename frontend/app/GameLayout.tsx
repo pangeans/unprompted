@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { Button } from "@/components/ui/button";
 import { generateRecap } from "./utils";
-import { Dialog } from "@/components/ui/dialog";
 
 interface GameLayoutProps {
   randomIndex: number;
