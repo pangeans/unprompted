@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { Button } from "@/components/ui/button";
 import { generateRecap } from "./utils";
+import { Dialog } from "@/components/ui/dialog";
 
 interface GameLayoutProps {
   randomIndex: number;
@@ -20,13 +21,34 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   const [guessHistory, setGuessHistory] = useState<{ word: string; score: number }[][]>([]);
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Reset states when keywords change
   useEffect(() => {
     setInputValues(Array(keywords.length).fill(""));
     setLockedInputs(Array(keywords.length).fill(false));
     setInvalidInputs(Array(keywords.length).fill(false));
+    setDialogOpen(false);
   }, [keywords]);
+
+  // Show dialog when game ends
+  useEffect(() => {
+    if (gameEnded) {
+      setDialogOpen(true);
+    }
+  }, [gameEnded]);
+
+  // Handle Enter key to reopen dialog
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && gameEnded && !dialogOpen) {
+        setDialogOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [gameEnded, dialogOpen]);
 
   const handleInputChange = (index: number, value: string) => {
     const newInputValues = [...inputValues];
@@ -145,7 +167,9 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         {gameEnded && (
           <GameOverSection 
             winningRound={winningRound} 
-            copyToClipboard={copyToClipboard} 
+            copyToClipboard={copyToClipboard}
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
           />
         )}
       </div>

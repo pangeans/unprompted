@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 // Import shadcn UI components
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface PromptSectionProps {
   originalPrompt: string;
@@ -77,6 +78,8 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
     const value = inputValues[index] ?? "";
     const isEmpty = !value.trim();
     const isInvalid = invalidInputs[index];
+    const targetWord = keywords[index];
+    const minWidth = Math.max(targetWord.length * 0.85 + 1, 4) + 'em'; // Added 1em padding and increased minimum
     
     return (
       <div className={cn(
@@ -87,6 +90,7 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
         <input
           type="text"
           value={value}
+          style={{ width: minWidth }}
           onChange={(e) => {
             if (!disabled) handleInputChange(index, e.target.value);
           }}
@@ -110,10 +114,13 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
                 return;
               }
 
-              // Otherwise move to next input
+              // Find next unlocked input, wrapping around to the beginning
               const nextIndex = lockedInputs.findIndex((locked, i) => !locked && i > index);
-              if (nextIndex !== -1) {
-                const nextInput = document.querySelector(`input[data-index="${nextIndex}"]`);
+              const firstUnlockedIndex = lockedInputs.findIndex(locked => !locked);
+              const targetIndex = nextIndex !== -1 ? nextIndex : firstUnlockedIndex;
+              
+              if (targetIndex !== -1) {
+                const nextInput = document.querySelector(`input[data-index="${targetIndex}"]`);
                 if (nextInput instanceof HTMLInputElement) {
                   nextInput.focus();
                   nextInput.select();
@@ -125,10 +132,10 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
           data-index={index}
           placeholder="Type here..."
           className={cn(
-            "px-2 py-1 rounded-md text-md min-w-fit not-italic",
-            "transition-all duration-200 bg-transparent",
+            "px-3 py-1 rounded-md text-md not-italic",
+            "transition-all duration-200 bg-transparent text-center",
             {
-              "bg-green-500 text-white font-bold": disabled && isLocked,
+              "bg-[hsl(142,76%,36%)] text-white font-bold": disabled && isLocked,
               "border-red-500 animate-shake": isInvalid,
               "empty:animate-pulse": isEmpty && !disabled,
               "ring-1 ring-muted/20": !disabled && !isInvalid,
@@ -258,14 +265,26 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
 interface GameOverSectionProps {
   winningRound: number | null;
   copyToClipboard: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard }) => (
-  <div className="mt-4">
-    <p className="text-xl font-bold">Game Over!</p>
-    {winningRound !== null && <p>You won in round {winningRound}!</p>}
-    <Button onClick={copyToClipboard} className="mt-2">
-      Copy Recap to Clipboard
-    </Button>
-  </div>
+export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard, open, onOpenChange }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
+        <div className="text-center">
+          {winningRound !== null ? (
+            <p className="text-lg mb-6">You won in round {winningRound}! 🎉</p>
+          ) : (
+            <p className="text-lg mb-6">Better luck next time!</p>
+          )}
+        </div>
+      </DialogHeader>
+      <Button onClick={copyToClipboard} className="w-full">
+        Copy Recap to Clipboard
+      </Button>
+    </DialogContent>
+  </Dialog>
 );
