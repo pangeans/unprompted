@@ -201,15 +201,15 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
   const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
   const totalRounds = 5;
   
-  const boxClassName = "w-[calc((90vw-2.5rem)/3)] sm:w-[100px] min-h-[40px] px-2 sm:px-4 py-2 rounded flex flex-col items-center justify-center relative text-sm sm:text-base";
+  const boxClassName = "w-[calc((85vw-1.5rem)/3)] sm:w-[100px] min-h-[36px] sm:min-h-[40px] px-1.5 sm:px-4 py-1.5 sm:py-2 rounded flex flex-col items-center justify-center relative text-xs sm:text-base";
 
   return (
-    <div className="mt-4 space-y-2.5 flex flex-col items-center w-[90vw] mx-auto">
+    <div className="mt-4 space-y-2 sm:space-y-2.5 flex flex-col items-center w-[85vw] mx-auto">
       {Array(totalRounds).fill(null).map((_, roundIndex) => {
         const guess = guessHistory[roundIndex];
         
         return (
-          <div key={`round-${roundIndex}`} className="flex gap-2.5 w-full justify-center">
+          <div key={`round-${roundIndex}`} className="flex gap-2 sm:gap-2.5 w-full justify-center">
             {guess ? (
               // Actual guesses
               guess.map((r, wordIndex) => {
@@ -222,7 +222,7 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
                     key={`guess-${roundIndex}-${wordIndex}-${r.word}`}
                     className={cn(
                       boxClassName,
-                      "text-white transition-all duration-300 break-words",
+                      "text-white transition-all duration-300 break-all sm:break-words",
                       "hover:scale-105 transform",
                       matching ? "font-bold" : "font-normal"
                     )}
@@ -231,7 +231,7 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
                       opacity: 0.8 + score * 0.2
                     }}
                   >
-                    <span className="relative z-10 text-center px-1">{r.word}</span>
+                    <span className="relative z-10 text-center px-0.5 sm:px-1 leading-tight">{r.word}</span>
                     <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20">
                       <div 
                         className="h-full bg-white/80 transition-all duration-300"
