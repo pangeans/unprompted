@@ -201,15 +201,15 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
   const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
   const totalRounds = 5;
   
-  const boxClassName = "w-[100px] min-h-[40px] px-4 py-2 rounded flex flex-col items-center justify-center relative";
+  const boxClassName = "w-[calc((90vw-2.5rem)/3)] sm:w-[100px] min-h-[40px] px-2 sm:px-4 py-2 rounded flex flex-col items-center justify-center relative text-sm sm:text-base";
 
   return (
-    <div className="mt-4 space-y-2.5 flex flex-col items-center">
+    <div className="mt-4 space-y-2.5 flex flex-col items-center w-[90vw] mx-auto">
       {Array(totalRounds).fill(null).map((_, roundIndex) => {
         const guess = guessHistory[roundIndex];
         
         return (
-          <div key={`round-${roundIndex}`} className="flex gap-2.5">
+          <div key={`round-${roundIndex}`} className="flex gap-2.5 w-full justify-center">
             {guess ? (
               // Actual guesses
               guess.map((r, wordIndex) => {
