@@ -1,5 +1,11 @@
 import React from 'react';
 import Image from 'next/image';
+import { cn } from '@/lib/utils';
+
+// Import shadcn UI components
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface PromptSectionProps {
   originalPrompt: string;
@@ -8,6 +14,7 @@ interface PromptSectionProps {
   keywords: string[];
   gameEnded: boolean;
   lockedInputs: boolean[];
+  invalidInputs?: boolean[];
 }
 
 interface ImageSectionProps {
@@ -15,48 +22,152 @@ interface ImageSectionProps {
 }
 
 export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
-  <div className="mb-4">
-    {image && (
-      <Image
-        src={image}
-        alt="Guess the Prompt!"
-        width={300}
-        height={300}
-      />
-    )}
-  </div>
+  <Card className="mb-4">
+    <CardContent className="p-0">
+      {image && (
+        <Image
+          src={image}
+          alt="Guess the Prompt!"
+          width={300}
+          height={300}
+        />
+      )}
+    </CardContent>
+  </Card>
 );
 
-export const PromptSection: React.FC<PromptSectionProps> = ({ originalPrompt, inputValues, handleInputChange, keywords, gameEnded, lockedInputs }) => {
+export const PromptSection: React.FC<PromptSectionProps> = ({ 
+  originalPrompt, 
+  inputValues, 
+  handleInputChange, 
+  keywords, 
+  gameEnded, 
+  lockedInputs,
+  invalidInputs = Array(keywords.length).fill(false)
+}) => {
+  // Helper function to clean words for comparison
+  const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
+  
+  // Split prompt into segments based on keyword positions
+  const segments: { text: string, keywordIndex: number | null }[] = [];
+  let currentText = '';
+  
+  const words = originalPrompt.split(/(\s+)/);
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const keywordIndex = keywords.findIndex(k => cleanWord(k) === cleanWord(word));
+    
+    if (keywordIndex !== -1) {
+      // If we have accumulated text, save it with the current keyword index
+      if (currentText) {
+        segments.push({ text: currentText, keywordIndex });
+        currentText = '';
+      }
+    } else {
+      currentText += word;
+      // If this is the last word or next word is a keyword, save the segment
+      if (i === words.length - 1 && currentText) {
+        segments.push({ text: currentText, keywordIndex: null });
+      }
+    }
+  }
+
+  const renderInput = (index: number) => {
+    const isLocked = lockedInputs[index];
+    const disabled = gameEnded || isLocked;
+    const value = inputValues[index] ?? "";
+    const isEmpty = !value.trim();
+    const isInvalid = invalidInputs[index];
+    const targetWord = keywords[index];
+    const minWidth = Math.max(targetWord.length * 0.85 + 1, 4) + 'em'; // Added 1em padding and increased minimum
+    
+    return (
+      <div className={cn(
+        "relative",
+        "inline-block",
+        "translate-y-1" // Adjust input position upward slightly
+      )}>
+        <input
+          type="text"
+          value={value}
+          style={{ width: minWidth }}
+          onChange={(e) => {
+            if (!disabled) handleInputChange(index, e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !disabled) {
+              e.preventDefault();
+              const currentWord = cleanWord(value);
+              const keyword = cleanWord(keywords[index]);
+              if (currentWord === keyword) {
+                handleInputChange(index, keywords[index]);
+              }
+              
+              // Check if all fields are filled
+              const allFilled = inputValues.every((val, idx) => 
+                lockedInputs[idx] || val.trim().length > 0
+              );
+
+              if (allFilled) {
+                const submitBtn = document.querySelector('button[type="submit"]');
+                if (submitBtn instanceof HTMLButtonElement) submitBtn.click();
+                return;
+              }
+
+              // Find next unlocked input, wrapping around to the beginning
+              const nextIndex = lockedInputs.findIndex((locked, i) => !locked && i > index);
+              const firstUnlockedIndex = lockedInputs.findIndex(locked => !locked);
+              const targetIndex = nextIndex !== -1 ? nextIndex : firstUnlockedIndex;
+              
+              if (targetIndex !== -1) {
+                const nextInput = document.querySelector(`input[data-index="${targetIndex}"]`);
+                if (nextInput instanceof HTMLInputElement) {
+                  nextInput.focus();
+                  nextInput.select();
+                }
+              }
+            }
+          }}
+          disabled={disabled}
+          data-index={index}
+          placeholder="Type here..."
+          className={cn(
+            "px-3 py-1 rounded-md text-md not-italic",
+            "transition-all duration-200 bg-transparent text-center",
+            {
+              "bg-[hsl(142,76%,36%)] text-white font-bold": disabled && isLocked,
+              "border-red-500 animate-shake": isInvalid,
+              "empty:animate-pulse": isEmpty && !disabled,
+              "ring-1 ring-muted/20": !disabled && !isInvalid,
+            }
+          )}
+        />
+        {!disabled && (
+          <div 
+            className={cn(
+              "absolute bottom-0 left-0 w-full h-0.5 transform scale-x-0 transition-transform duration-200",
+              "bg-blue-500",
+              { "scale-x-100 animate-pulse": !isEmpty }
+            )}
+          />
+        )}
+      </div>
+    );
+  };
+
   return (
-    <div className="flex flex-wrap gap-1 mb-2">
-      {originalPrompt.split(/(\W+)/).map((word, idx) => {
-        const lowerKeywords = keywords.map(keyword => keyword.toLowerCase());
-        const wordLower = word.toLowerCase();
-        const keywordIndex = lowerKeywords.indexOf(wordLower);
+    <div className="flex flex-wrap gap-1 max-w-xl mx-auto text-md italic">
+      {originalPrompt.split(/(\s+)/).map((word, idx) => {
+        const keywordIndex = keywords.findIndex(k => cleanWord(k) === cleanWord(word));
         if (keywordIndex !== -1) {
-          const isLocked = lockedInputs[keywordIndex];
-          const disabled = gameEnded || isLocked;
-          const value = gameEnded ? keywords[keywordIndex] : (inputValues[keywordIndex] ?? "");
-        const styleClass = gameEnded ? (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "bg-red-500 text-white p-1 rounded font-bold") : (isLocked ? "bg-green-500 text-white p-1 rounded font-bold" : "p-1 text-black w-auto focus:outline-none focus:ring-0 border-0 caret-black text-sm align-middle");
-          return (
-            <div key={idx} className="relative inline-block align-middle -translate-y-1">
-              <input
-                type="text"
-                value={value}
-                onChange={e => {
-if (!disabled) handleInputChange(keywordIndex, e.target.value);
-}}
-                disabled={disabled}
-                className={styleClass}
-              style={{ width: `${word.length + 1}ch` }}
-              />
-              {!disabled && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-black animate-flash"></div>}
-            </div>
-          );
+          return <React.Fragment key={`input-${keywordIndex}-${idx}`}>
+            {renderInput(keywordIndex)}
+          </React.Fragment>;
         } else {
           return (
-            <span key={idx} className="text-sm align-middle inline-block">{word}</span>
+            <span key={`text-${idx}-${word}`} className="align-middle inline-block leading-10">
+              {word}
+            </span>
           );
         }
       })}
@@ -64,36 +175,15 @@ if (!disabled) handleInputChange(keywordIndex, e.target.value);
   );
 };
 
-// Extract common color helper functions
-export const interpolateColor = (color1: {r: number, g: number, b: number}, color2: {r: number, g: number, b: number}, factor: number) => {
-  const r = Math.round(color1.r + factor * (color2.r - color1.r));
-  const g = Math.round(color1.g + factor * (color2.g - color1.g));
-  const b = Math.round(color1.b + factor * (color2.b - color1.b));
-  return `rgb(${r}, ${g}, ${b})`;
+// Color interpolation helper
+const interpolateColor = (score: number): string => {
+  // HSL colors for better gradients
+  if (score === 1) return 'hsl(142, 76%, 36%)'; // Perfect match green
+  if (score >= 0.8) return `hsl(${120 * score}, 70%, 45%)`; // Green to yellow
+  if (score >= 0.5) return `hsl(${120 * score}, 65%, 50%)`; // Yellow to orange
+  return `hsl(0, 75%, ${45 + score * 20}%)`; // Red with varying lightness
 };
 
-// Updated getGradientColor function for GuessHistorySection with adjusted thresholds
-export const getGradientColor = (score: number): string => {
-  // Adjusted expected score range for normalization: from 0.0 (red) to 0.7 (green)
-  const minThreshold = 0.0;
-  const maxThreshold = 1.0;
-  // Normalize the score to a 0-1 range based on the threshold
-  const normalized = Math.min(1, Math.max(0, (score - minThreshold) / (maxThreshold - minThreshold)));
-
-  const red = { r: 239, g: 68, b: 68 };        // Tailwind red-500 (#ef4444)
-  const yellow = { r: 245, g: 158, b: 11 };      // Tailwind yellow-500 (#f59e0b)
-  const green = { r: 34, g: 197, b: 94 };         // Tailwind green-500 (#22c55e)
-  console.log(`Score: ${score}, Normalized: ${normalized}`);
-  if (normalized <= 0.5) {
-    const factor = normalized / 0.5; // 0 -> red, 1 -> yellow
-    return interpolateColor(red, yellow, factor);
-  } else {
-    const factor = (normalized - 0.5) / 0.5; // 0 -> yellow, 1 -> green
-    return interpolateColor(yellow, green, factor);
-  }
-};
-
-// Update GuessHistorySection by updating the interface and component
 interface GuessHistoryItem {
   word: string;
   score: number;
@@ -104,29 +194,70 @@ interface GuessHistorySectionProps {
   keywords: string[];
 }
 
-// Remove simMappings state and its useEffect as they are no longer used
-export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ guessHistory, keywords }) => {
+export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ 
+  guessHistory, 
+  keywords
+}) => {
+  const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
+  const totalRounds = 5;
+  
+  const boxClassName = "w-[100px] min-h-[40px] px-4 py-2 rounded flex flex-col items-center justify-center relative";
+
   return (
-    <div className="mt-4 space-y-2">
-      {guessHistory.map((guess, roundIndex) => (
-        <div key={roundIndex} className="flex gap-2">
-          {guess.map((r, wordIndex) => {
-            const score = typeof r.score === 'number' ? r.score : 0;
-            // If the guessed word matches its corresponding keyword exactly (ignoring case), use green color
-            const matching = r.word.toLowerCase() === keywords[wordIndex].toLowerCase();
-            const bgColor = matching ? 'rgb(34, 197, 94)' : getGradientColor(score);
-            return (
-              <span
-                key={`${roundIndex}-${wordIndex}`}
-                className="px-2 py-1 rounded text-white"
-                style={{ backgroundColor: bgColor }}
-              >
-                {r.word}
-              </span>
-            );
-          })}
-        </div>
-      ))}
+    <div className="mt-4 space-y-2.5 flex flex-col items-center">
+      {Array(totalRounds).fill(null).map((_, roundIndex) => {
+        const guess = guessHistory[roundIndex];
+        
+        return (
+          <div key={`round-${roundIndex}`} className="flex gap-2.5">
+            {guess ? (
+              // Actual guesses
+              guess.map((r, wordIndex) => {
+                const score = typeof r.score === 'number' ? r.score : 0;
+                const matching = cleanWord(r.word) === cleanWord(keywords[wordIndex]);
+                const bgColor = interpolateColor(score);
+                
+                return (
+                  <div 
+                    key={`guess-${roundIndex}-${wordIndex}-${r.word}`}
+                    className={cn(
+                      boxClassName,
+                      "text-white transition-all duration-300 break-words",
+                      "hover:scale-105 transform",
+                      matching ? "font-bold" : "font-normal"
+                    )}
+                    style={{ 
+                      backgroundColor: bgColor,
+                      opacity: 0.8 + score * 0.2
+                    }}
+                  >
+                    <span className="relative z-10 text-center px-1">{r.word}</span>
+                    <div className="absolute inset-x-0 bottom-0 h-1 bg-black/20">
+                      <div 
+                        className="h-full bg-white/80 transition-all duration-300"
+                        style={{ width: `${score * 100}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              // Empty placeholder boxes
+              keywords.map((_, wordIndex) => (
+                <div 
+                  key={`empty-${roundIndex}-${wordIndex}`}
+                  className={cn(
+                    boxClassName,
+                    "bg-gray-500 opacity-30"
+                  )}
+                >
+                  &nbsp;
+                </div>
+              ))
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
@@ -134,17 +265,26 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ guessH
 interface GameOverSectionProps {
   winningRound: number | null;
   copyToClipboard: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard }) => (
-  <div className="mt-4">
-    <p className="text-xl font-bold">Game Over!</p>
-    {winningRound !== null && <p>You won in round {winningRound}!</p>}
-    <button 
-      onClick={copyToClipboard} 
-      className="bg-blue-500 text-white p-2 rounded hover:bg-blue-600 mt-2"
-    >
-      Copy Recap to Clipboard
-    </button>
-  </div>
+export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard, open, onOpenChange }) => (
+  <Dialog open={open} onOpenChange={onOpenChange}>
+    <DialogContent className="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
+        <div className="text-center">
+          {winningRound !== null ? (
+            <p className="text-lg mb-6">You won in round {winningRound}! 🎉</p>
+          ) : (
+            <p className="text-lg mb-6">Better luck next time!</p>
+          )}
+        </div>
+      </DialogHeader>
+      <Button onClick={copyToClipboard} className="w-full">
+        Copy Recap to Clipboard
+      </Button>
+    </DialogContent>
+  </Dialog>
 );
