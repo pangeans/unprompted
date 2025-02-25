@@ -156,7 +156,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         disabled={gameEnded || inputValues.some((value, index) => !value.trim() && !lockedInputs[index])}
         variant="default"
         size="lg"
-        className="mt-2 hidden"
+        className="mt-4 mb-4 w-full sm:w-auto sm:hidden md:hidden lg:hidden xl:hidden"
       >
         Submit
       </Button>
