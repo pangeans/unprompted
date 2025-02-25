@@ -1,7 +1,0 @@
-{
-    "image": "/random-3.webp",
-    "prompt": "A distressed female woodcarver, sculpting a wooden engine. Art Style: Hyper-realistic photography.",
-    "keywords": ["distressed", "woodcarver", "sculpting", "wooden", "engine"],
-    "speech_type": ["adjective", "noun", "verb", "adjective", "noun"],
-    "similarity_files": ["/distressed.json", "/woodcarver.json", "/sculpting.json", "/wooden.json", "/engine.json"]
-}
