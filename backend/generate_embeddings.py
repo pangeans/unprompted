@@ -72,9 +72,9 @@ def generate_nearest_words_optimized(keywords, nlp, top_n):
 
 
 def main():
-    num = 1000
+    num = 10000
     keywords = [
-        "pizza", "wings", "chili", "milkshake", "caviar",
+        "pizza", "wings", "spicy", "milkshake", "caviar",
         "guide", "harvest", "fry", "egg", "cookbook",
         "onion", "elderly", "knitting", "Jesus", "desert",
         "distressed", "woodcarver", "sculpting", "wooden", "engine"

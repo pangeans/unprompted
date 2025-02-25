@@ -9,15 +9,17 @@ export default function Home() {
   const [prompt, setRandomPrompt] = useState('');
   const [keywords, setRandomKeywords] = useState<string[]>([]);
   const [similarityDict, setSimilarityDict] = useState<Record<string, Record<string, number>>>({});
+  const [speechTypes, setSpeechTypes] = useState<string[]>([]);
 
   useEffect(() => {
     const loadGame = async () => {
-      const { randomIndex, image, prompt, keywords, similarityDict } = await getRandomImageAndPrompt();
+      const { randomIndex, image, prompt, keywords, similarityDict, speechTypes } = await getRandomImageAndPrompt();
       setRandomIndex(randomIndex);
       setRandomImage(image);
       setRandomPrompt(prompt);
       setRandomKeywords(keywords);
       setSimilarityDict(similarityDict);
+      setSpeechTypes(speechTypes || []);
     };
     loadGame();
   }, []);
@@ -29,6 +31,7 @@ export default function Home() {
       prompt={prompt} 
       keywords={keywords}
       similarityDict={similarityDict}
+      speechTypes={speechTypes}
     />
   );
 }

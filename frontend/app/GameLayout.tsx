@@ -10,9 +10,10 @@ interface GameLayoutProps {
   prompt: string;
   keywords: string[];
   similarityDict: Record<string, Record<string, number>>;
+  speechTypes?: string[]; // Add speech types to props interface
 }
 
-const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords, similarityDict }) => {
+const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords, similarityDict, speechTypes = [] }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
@@ -147,6 +148,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         gameEnded={gameEnded}
         lockedInputs={lockedInputs}
         invalidInputs={invalidInputs}
+        speechTypes={speechTypes} // Pass speech types to PromptSection
       />
       <Button 
         onClick={handleSubmit}

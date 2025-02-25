@@ -15,6 +15,7 @@ interface GameData {
   prompt: string;
   keywords: string[];
   similarity_files: string[];
+  speech_type: string[]; // Added speech_type to the interface
 }
 
 export const getRandomImageAndPrompt = async () => {
@@ -42,6 +43,7 @@ export const getRandomImageAndPrompt = async () => {
     image: gameData.image, 
     prompt: gameData.prompt, 
     keywords: gameData.keywords,
-    similarityDict
+    similarityDict,
+    speechTypes: gameData.speech_type // Include speech types in return value
   };
 };

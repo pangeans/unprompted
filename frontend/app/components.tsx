@@ -15,6 +15,7 @@ interface PromptSectionProps {
   gameEnded: boolean;
   lockedInputs: boolean[];
   invalidInputs?: boolean[];
+  speechTypes?: string[]; // Add speech types prop
 }
 
 interface ImageSectionProps {
@@ -43,10 +44,33 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
   keywords, 
   gameEnded, 
   lockedInputs,
-  invalidInputs = Array(keywords.length).fill(false)
+  invalidInputs = Array(keywords.length).fill(false),
+  speechTypes = Array(keywords.length).fill("") // Default to empty speech types
 }) => {
   // Helper function to clean words for comparison
   const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
+  
+  // Function to get placeholder based on speech type
+  const getPlaceholderFromSpeechType = (speechType: string) => {
+    switch(speechType?.toLowerCase()) {
+      case 'noun': return "noun...";
+      case 'verb': return "verb...";
+      case 'adverb': return "adverb...";
+      case 'adjective': return "adjective...";
+      default: return "Type here...";
+    }
+  };
+  
+  // Function to get background color based on speech type
+  const getSpeechTypeColor = (speechType: string) => {
+    switch(speechType?.toLowerCase()) {
+      case 'noun': return "rgba(59, 130, 246, 0.1)"; // blue tint
+      case 'verb': return "rgba(16, 185, 129, 0.1)"; // green tint
+      case 'adverb': return "rgba(245, 158, 11, 0.1)"; // amber tint
+      case 'adjective': return "rgba(239, 68, 68, 0.1)"; // red tint
+      default: return "transparent";
+    }
+  };
   
   // Split prompt into segments based on keyword positions
   const segments: { text: string, keywordIndex: number | null }[] = [];
@@ -79,7 +103,14 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
     const isEmpty = !value.trim();
     const isInvalid = invalidInputs[index];
     const targetWord = keywords[index];
+    const speechType = speechTypes[index] || "";
     const minWidth = Math.max(targetWord.length * 0.85 + 1, 4) + 'em'; // Added 1em padding and increased minimum
+    
+    // Set placeholder based on speech type
+    const placeholder = getPlaceholderFromSpeechType(speechType);
+    
+    // Set background color based on speech type
+    const speechTypeColor = getSpeechTypeColor(speechType);
     
     return (
       <div className={cn(
@@ -89,8 +120,14 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
       )}>
         <input
           type="text"
-          value={value}
-          style={{ width: minWidth }}
+          value={gameEnded && !isLocked ? targetWord : value} // Show correct word when game ends and input is not locked
+          style={ gameEnded || isLocked ?{ 
+            width: minWidth,
+            backgroundColor: 'hsl(142,76%,36%)' // Apply speech type background color
+          } : { 
+            width: minWidth,
+            backgroundColor: speechTypeColor // Apply speech type background color
+          } }
           onChange={(e) => {
             if (!disabled) handleInputChange(index, e.target.value);
           }}
@@ -130,12 +167,13 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
           }}
           disabled={disabled}
           data-index={index}
-          placeholder="Type here..."
+          placeholder={placeholder}
           className={cn(
             "px-3 py-1 rounded-md text-md not-italic",
             "transition-all duration-200 bg-transparent text-center",
             {
               "bg-[hsl(142,76%,36%)] text-white font-bold": disabled && isLocked,
+              "bg-red-500 text-white font-bold": gameEnded && !isLocked, // Red background for incorrect answers when game ends
               "border-red-500 animate-shake": isInvalid,
               "empty:animate-pulse": isEmpty && !disabled,
               "ring-1 ring-muted/20": !disabled && !isInvalid,
