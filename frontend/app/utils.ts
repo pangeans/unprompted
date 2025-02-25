@@ -19,7 +19,7 @@ interface GameData {
 }
 
 export const getRandomImageAndPrompt = async () => {
-  const totalGames = 2; // assuming we have random-0 through random-4
+  const totalGames = 3; // assuming we have random-0 through random-4
   const randomIndex = Math.floor(Math.random() * totalGames);
   
   // Load the game data
