@@ -2,3 +2,6 @@ requests
 psycopg2-binary
 python-dotenv
 spacy
+redis
+vercel_blob
+numpy
