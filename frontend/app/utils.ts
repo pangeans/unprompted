@@ -15,21 +15,31 @@ interface GameData {
   prompt: string;
   keywords: string[];
   similarity_files: string[];
-  speech_type: string[]; // Added speech_type to the interface
+  speech_type: string[];
 }
 
 export const getRandomImageAndPrompt = async () => {
-  const totalGames = 3; // assuming we have random-0 through random-4
+  const totalGames = 3; // assuming we have random-0 through random-2
   const randomIndex = Math.floor(Math.random() * totalGames);
   
-  // Load the game data
-  const response = await fetch(`/random-${randomIndex}.json`);
+  // Load the game data from the new folder structure
+  const response = await fetch(`/random-${randomIndex}/game_config.json`);
   const gameData: GameData = await response.json();
   
-  // Load all similarity files
-  const similarityPromises = gameData.similarity_files.map(file => 
-    fetch(`${file}`).then(res => res.json())
-  );
+  // Use the image path from config if it's absolute, otherwise construct based on folder
+  const imagePath = gameData.image.startsWith('/')
+    ? `/random-${randomIndex}/original_image.webp` // Use original_image.webp from the folder
+    : `/random-${randomIndex}/${gameData.image}`; 
+  
+  // Load all similarity files from the new path structure
+  const similarityPromises = gameData.similarity_files.map(file => {
+    // Handle both absolute and relative paths
+    const filePath = file.startsWith('/')
+      ? `/random-${randomIndex}${file}` // Prefix with random-N folder
+      : `/random-${randomIndex}/${file}`;
+    return fetch(filePath).then(res => res.json());
+  });
+  
   const similarityData = await Promise.all(similarityPromises);
   
   // Create similarity dictionary where each keyword has its own mapping
@@ -40,10 +50,10 @@ export const getRandomImageAndPrompt = async () => {
 
   return { 
     randomIndex, 
-    image: gameData.image, 
+    image: imagePath, // Use the updated image path
     prompt: gameData.prompt, 
     keywords: gameData.keywords,
     similarityDict,
-    speechTypes: gameData.speech_type // Include speech types in return value
+    speechTypes: gameData.speech_type
   };
 };

@@ -3,5 +3,10 @@
     "prompt": "A sad man presenting an elaborate ice sculpture of a computer. Setting: underwater. Art Style: Photorealistic.",
     "keywords": ["sad", "ice", "sculpture", "computer", "underwater"],
     "speech_type": ["adjective", "noun", "noun", "noun", "adjective"],
-    "similarity_files": ["/sad.json", "/ice.json", "/sculpture.json", "/computer.json", "/underwater.json"]
+    "similarity_files": [
+        "/similarity_jsons/sad.json", 
+        "/similarity_jsons/ice.json", 
+        "/similarity_jsons/sculpture.json", 
+        "/similarity_jsons/computer.json", 
+        "/similarity_jsons/underwater.json"]
 }

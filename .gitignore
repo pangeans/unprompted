@@ -2,5 +2,7 @@ backend/schema.sql
 .venv/*
 backend/.venv/*
 image_gen/.venv/*
-image_gen/models/*.pth
+image_gen/checkpoints/*.pt
 .env
+image_gen/masked_images/*
+image_gen/blurry_combinations/*

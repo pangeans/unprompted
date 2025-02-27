@@ -1,1 +1,4 @@
 git+https://github.com/facebookresearch/sam2@main
+matplotlib
+torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+opencv-python
