@@ -6,6 +6,10 @@ export const generateRecap = (randomIndex: number, guessHistory: { word: string;
       if (r.score > 0 && r.score < 1) return "🟨";
       return "⬛";
     }).join("");
+    let guess_no = guessHistory.indexOf(guess);
+    if (guess_no < (guessHistory.length - 1)) {
+      recap += "\n";
+    };
   });
   return recap;
 };
