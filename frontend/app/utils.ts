@@ -1,11 +1,11 @@
 export const generateRecap = (randomIndex: number, guessHistory: { word: string; score: number }[][], round: number): string => {
-  let recap = `Unprompted ${randomIndex} ${round}/5\n`;
+  let recap = `unprompted ${randomIndex} ${round}/5\n`;
   guessHistory.forEach(guess => {
     recap += guess.map(r => {
       if (r.score === 1) return "🟩";
       if (r.score > 0 && r.score < 1) return "🟨";
       return "⬛";
-    }).join("") + "\n";
+    }).join("");
   });
   return recap;
 };
