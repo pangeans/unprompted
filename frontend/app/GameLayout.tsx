@@ -10,10 +10,19 @@ interface GameLayoutProps {
   prompt: string;
   keywords: string[];
   similarityDict: Record<string, Record<string, number>>;
-  speechTypes?: string[]; // Add speech types to props interface
+  speechTypes?: string[];
+  isLoading?: boolean; // Add loading prop
 }
 
-const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords, similarityDict, speechTypes = [] }) => {
+const GameLayout: React.FC<GameLayoutProps> = ({ 
+  randomIndex, 
+  image, 
+  prompt, 
+  keywords, 
+  similarityDict, 
+  speechTypes = [],
+  isLoading = false // Default to false
+}) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
@@ -135,6 +144,27 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     const recap = generateRecap(randomIndex, guessHistory, round);
     navigator.clipboard.writeText(recap);
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
+        {/* Image skeleton */}
+        <div className="w-[300px] h-[300px] bg-gray-200 animate-pulse rounded-lg mb-8" />
+        {/* Prompt skeleton */}
+        <div className="w-full max-w-2xl space-y-3">
+          <div className="h-4 bg-gray-200 animate-pulse rounded w-3/4" />
+          <div className="h-4 bg-gray-200 animate-pulse rounded w-1/2" />
+        </div>
+        {/* Input skeleton */}
+        <div className="flex gap-2 mt-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="w-24 h-10 bg-gray-200 animate-pulse rounded" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
