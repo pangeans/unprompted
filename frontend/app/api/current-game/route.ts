@@ -7,20 +7,14 @@ const DATABASE_URL = process.env.DATABASE_URL;
 const REDIS_URL = process.env.REDIS_URL;
 
 export async function GET() {
-  let pgClient: PostgresClient | null = null;
-  let redisClient: any = null;
+  // Connect to PostgreSQL
+  const pgClient = new PostgresClient({connectionString: DATABASE_URL});
+  await pgClient.connect();
+  // Connect to Redis
+  const redisClient = createRedisClient({ url: REDIS_URL });
+  await redisClient.connect();
 
   try {
-    // Connect to PostgreSQL
-    pgClient = new PostgresClient({
-      connectionString: DATABASE_URL,
-    });
-    await pgClient.connect();
-
-    // Connect to Redis
-    redisClient = createRedisClient({ url: REDIS_URL });
-    await redisClient.connect();
-
     // Query for active games (games whose start time has passed)
     const { rows } = await pgClient.query(`
       SELECT id, prompt_id, prompt_text, keywords, speech_types, image_url, date_active
@@ -39,7 +33,7 @@ export async function GET() {
     }
 
     // If there are multiple games with the same most recent date, randomly choose one
-    let latestGames = [rows[0]];
+    const latestGames = [rows[0]];
     for (let i = 1; i < rows.length; i++) {
       if (rows[i].date_active.getTime() === rows[0].date_active.getTime()) {
         latestGames.push(rows[i]);
