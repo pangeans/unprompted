@@ -5,6 +5,7 @@ interface GameResponse {
   keywords: string[];
   image_url: string;
   similarity_data: Record<string, Record<string, number>>;
+  speech_types: string[];  // Add speech_types to the interface
 }
 
 export const fetchLatestActiveGame = async (): Promise<GameResponse> => {

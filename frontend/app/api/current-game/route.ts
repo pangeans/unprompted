@@ -23,7 +23,7 @@ export async function GET() {
 
     // Query for active games (games whose start time has passed)
     const { rows } = await pgClient.query(`
-      SELECT id, prompt_id, prompt_text, keywords, image_url, date_active
+      SELECT id, prompt_id, prompt_text, keywords, speech_types, image_url, date_active
       FROM games
       WHERE date_active <= NOW()
       ORDER BY date_active DESC
@@ -82,6 +82,7 @@ export async function GET() {
       keywords: parsedKeywords,
       image_url,
       similarity_data: similarityData,
+      speech_types: selectedGame.speech_types || []  // Add speech_types to response
     });
   } catch (error) {
     console.error('Error fetching game data:', error);

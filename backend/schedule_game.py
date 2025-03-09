@@ -138,16 +138,17 @@ def load_game_data(
         # Extract game data
         prompt_text = game_data.get('prompt', '')
         keywords = game_data.get('keywords', [])
+        speech_types = game_data.get('speech_type', [])  # Get speech types from JSON
         
         # Insert into database
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO games (prompt_id, prompt_text, keywords, date_active, image_url)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO games (prompt_id, prompt_text, keywords, speech_types, date_active, image_url)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (prompt_id, prompt_text, json.dumps(keywords), parsed_time, image_url)
+                (prompt_id, prompt_text, json.dumps(keywords), json.dumps(speech_types), parsed_time, image_url)
             )
             game_id = cur.fetchone()[0]
             conn.commit()

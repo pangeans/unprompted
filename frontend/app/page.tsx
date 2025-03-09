@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import GameLayout from './GameLayout';
-import { getRandomImageAndPrompt } from './utils';
+import { fetchLatestActiveGame } from './services/gameData';
 
 export default function Home() {
   const [randomIndex, setRandomIndex] = useState<number>(0);
@@ -13,13 +13,21 @@ export default function Home() {
 
   useEffect(() => {
     const loadGame = async () => {
-      const { randomIndex, image, prompt, keywords, similarityDict, speechTypes } = await getRandomImageAndPrompt();
-      setRandomIndex(randomIndex);
-      setRandomImage(image);
-      setRandomPrompt(prompt);
+      const { 
+        prompt_id, 
+        image_url, 
+        prompt_text, 
+        keywords, 
+        similarity_data,
+        speech_types 
+      } = await fetchLatestActiveGame();
+
+      setRandomIndex(parseInt(prompt_id.replace(/[^0-9]/g, '')) || 0);
+      setRandomImage(image_url);
+      setRandomPrompt(prompt_text);
       setRandomKeywords(keywords);
-      setSimilarityDict(similarityDict);
-      setSpeechTypes(speechTypes || []);
+      setSimilarityDict(similarity_data);
+      setSpeechTypes(speech_types || []);
     };
     loadGame();
   }, []);
