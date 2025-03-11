@@ -3,6 +3,11 @@ psycopg2-binary
 python-dotenv
 spacy
 redis
-vercel_blob
+vercel-blob
 numpy
 python-dateutil
+opencv-python
+matplotlib
+pillow
+git+https://github.com/facebookresearch/sam2
+pytest>=7.4.0

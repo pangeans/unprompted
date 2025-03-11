@@ -3,190 +3,146 @@
 Schedule Game
 
 A utility for managing and scheduling games for the Unprompted application.
-
-This script provides functions for:
-1. Uploading images to Vercel Blob Storage
-2. Loading game data into PostgreSQL database
-3. Loading similarity data into Redis
-4. Scheduling games with a specific start time
-5. Handling pixelated image combinations
-
-Usage:
-    python schedule_game.py --game-info GAME_FILE --start-time ISO8601_TIME
+Handles the entire flow:
+1. Load game config
+2. Generate pixelated combinations using segmenter
+3. Generate similarity data
+4. Upload assets to Vercel Blob Storage
+5. Load data into databases
 """
 
 import os
 import json
-import argparse
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, TypeVar, cast
+from typing import Dict, List, Optional, Any
 
 import psycopg2
 import redis
-import dateutil.parser
 import vercel_blob
+import dateutil.parser
 from dotenv import load_dotenv
 
+from generate_embeddings import generate_embeddings
 from utils import load_json_data
 
-# Load environment variables from .env file
+# Add segmenter to Python path
+import sys
+from segmenter import process_image as process_image_segmentation
+
+# Load environment variables
 load_dotenv()
 
-# Type definitions
-T = TypeVar('T')
-JsonDict = Dict[str, Any]
-RedisClient = redis.Redis
-PostgresConnection = psycopg2.extensions.connection
-
-
-def connect_to_postgres() -> PostgresConnection:
+def connect_to_postgres() -> psycopg2.extensions.connection:
     """Connect to PostgreSQL database using environment variables."""
     conn = psycopg2.connect(os.getenv('DATABASE_URL', ''))
     print("Connected to PostgreSQL database")
     return conn
 
-
-def connect_to_redis() -> RedisClient:
+def connect_to_redis() -> redis.Redis:
     """Connect to Redis database using environment variables."""
     redis_client = redis.Redis.from_url(os.environ.get("REDIS_URL", ""))
     redis_client.ping()  # Test connection
     print("Connected to Redis database")
     return redis_client
 
-
-def load_image(
-    image_path: str, 
-    game_id: Optional[str] = None,
-    base_dir: str = "../frontend/public"
+def upload_to_blob(
+    file_path: str | Path,
+    blob_name: str,
+    access: str = "public"
 ) -> Optional[str]:
     """
-    Upload an image to Vercel Blob Storage.
+    Upload a file to Vercel Blob Storage.
     
     Args:
-        image_path: Path to the image file, relative to base_dir
-        game_id: Optional identifier for the game this image belongs to
-        base_dir: Base directory for images
-    
+        file_path: Path to the file to upload
+        blob_name: Name to give the blob
+        access: Access level ("public" or "private")
+        
     Returns:
-        URL of the uploaded image or None if upload fails
+        URL of the uploaded file or None if upload fails
     """
-    # Resolve the full path to the image
-    full_path = Path(__file__).parent / base_dir / image_path.lstrip('/')
-    
-    # Check if the file exists
-    if not full_path.exists():
-        print(f"Warning: Image file not found: {full_path}")
-        return None
-    
-    # Create a unique blob name using game_id if provided
-    blob_name = f"game-images/{game_id or 'game'}-{Path(image_path).name}"
-    
-    # Upload to Vercel Blob
-    print(f"Uploading image to Vercel Blob: {full_path} -> {blob_name}")
-    with open(full_path, 'rb') as f:
-        blob = vercel_blob.put(
-            blob_name,
-            f.read(),
-            options={"access": "public"}
-        )
-        
-    print(f"Image uploaded successfully. URL: {blob['url']}")
-    return blob['url']
-
-
-def load_pixelated_combinations(
-    prompt_id: str,
-    combinations_dir: str = "../segmenter/blurry_combinations"
-) -> Dict[str, str]:
-    """
-    Upload all pixelated image combinations to Vercel Blob Storage.
-    
-    Args:
-        prompt_id: Identifier for the game
-        combinations_dir: Directory containing pixelated combinations
-    
-    Returns:
-        Dictionary mapping combination filenames to their uploaded URLs
-    """
-    # Get the path to the combinations directory
-    combinations_path = Path(__file__).parent / combinations_dir
-    
-    # Check if the combinations directory exists
-    if not combinations_path.exists():
-        print(f"Warning: Combinations directory not found: {combinations_path}")
-        return {}
-    
-    # Get all webp files in the directory
-    combination_files = list(combinations_path.glob("*.webp"))
-    
-    if not combination_files:
-        print(f"Warning: No combination files found in {combinations_path}")
-        return {}
-    
-    print(f"Found {len(combination_files)} pixelated combinations to upload")
-    
-    # Upload each combination and store the mapping
-    pixelation_map = {}
-    for file_path in combination_files:
-        filename = file_path.name
-        
-        # Create a unique blob name
-        blob_name = f"game-images/{prompt_id}-pixelated-{filename}"
-        
-        # Upload to Vercel Blob
-        print(f"Uploading pixelated combination: {filename}")
+    try:
+        print(f"Uploading to Vercel Blob: {file_path} -> {blob_name}")
         with open(file_path, 'rb') as f:
             blob = vercel_blob.put(
                 blob_name,
                 f.read(),
-                options={"access": "public"}
+                options={"access": access}
             )
-        
-        # Store the mapping
-        pixelation_map[filename] = blob['url']
-    
-    print(f"Uploaded {len(pixelation_map)} pixelated combinations")
-    return pixelation_map
+        print(f"Upload successful. URL: {blob['url']}")
+        return blob['url']
+    except Exception as e:
+        print(f"Error uploading to blob storage: {e}")
+        return None
 
-
-def load_game_data(
-    game_file: str,
-    start_time: Optional[str] = None,
-    image_url: Optional[str] = None,
-    pixelation_map: Optional[Dict[str, str]] = None,
+def process_game_image(
+    image_path: str | Path,
+    keywords: List[str],
+    prompt_id: str,
     base_dir: str = "../frontend/public"
-) -> Optional[int]:
+) -> tuple[Optional[str], Optional[Dict[str, str]]]:
     """
-    Load game data into PostgreSQL.
-    
-    Args:
-        game_file: Path to the game JSON file
-        start_time: ISO 8601 formatted string for when the game should start
-        image_url: Optional URL of already uploaded image
-        pixelation_map: Optional dictionary mapping pixelation combinations to URLs
-        base_dir: Base directory for game files
+    Process a game image:
+    1. Generate pixelated combinations
+    2. Upload original and pixelated images to blob storage
     
     Returns:
-        ID of the inserted game record, or None if operation failed
+        Tuple of (original image URL, pixelation map with URLs)
     """
+    # Resolve the full path to the image
+    full_path = Path(base_dir) / image_path.lstrip('/')
+    if not full_path.exists():
+        print(f"Error: Image file not found: {full_path}")
+        return None, None
+        
+    # Upload original image
+    blob_name = f"game-images/{prompt_id}-{Path(image_path).name}"
+    image_url = upload_to_blob(full_path, blob_name)
+    if not image_url:
+        return None, None
+        
+    # Generate pixelated combinations
+    print("\nGenerating pixelated combinations...")
+    pixelation_map = process_image_segmentation(
+        str(full_path),
+        keywords
+    )
+    if not pixelation_map:
+        print("Warning: Failed to generate pixelated combinations")
+        return image_url, None
+        
+    # Upload each pixelated combination
+    uploaded_map = {}
+    for filename, file_path in pixelation_map.items():
+        blob_name = f"game-images/{prompt_id}-pixelated-{filename}"
+        if url := upload_to_blob(file_path, blob_name):
+            uploaded_map[filename] = url
+    
+    return image_url, uploaded_map
+
+def load_game_data(
+    game_file: str | Path,
+    image_url: str,
+    pixelation_map: Optional[Dict[str, str]],
+    start_time: Optional[str] = None,
+) -> Optional[int]:
+    """Load game data into PostgreSQL."""
     conn = connect_to_postgres()
     
     try:
-        # Load game data from file
-        file_path = Path(__file__).parent / base_dir / game_file.lstrip('/')
-        game_data = load_json_data(str(file_path))
+        # Load game data
+        game_data = load_json_data(str(game_file))
         if not game_data:
             print(f"Failed to load game data from {game_file}")
             return None
-        
+            
         # Extract prompt ID from filename
         prompt_id = Path(game_file).stem
         
         # Parse start time or use current time
         try:
             parsed_time = dateutil.parser.parse(start_time) if start_time else datetime.now(timezone.utc)
-            # Ensure timezone awareness
             if parsed_time.tzinfo is None:
                 parsed_time = parsed_time.replace(tzinfo=timezone.utc)
         except Exception as e:
@@ -196,19 +152,16 @@ def load_game_data(
         # Extract game data
         prompt_text = game_data.get('prompt', '')
         keywords = game_data.get('keywords', [])
-        speech_types = game_data.get('speech_type', [])  # Get speech types from JSON
+        speech_types = game_data.get('speech_type', [])
         
-        # Check if pixelation column exists, if not add it
+        # Check for pixelation column
         with conn.cursor() as cur:
-            # Check if column exists
             cur.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
                 WHERE table_name='games' AND column_name='pixelation_map'
             """)
-            column_exists = cur.fetchone() is not None
-            
-            if not column_exists:
+            if cur.fetchone() is None:
                 print("Adding pixelation_map column to games table")
                 cur.execute("ALTER TABLE games ADD COLUMN pixelation_map JSONB")
                 conn.commit()
@@ -236,8 +189,9 @@ def load_game_data(
             )
             game_id = cur.fetchone()[0]
             conn.commit()
-            print(f"Inserted new game record with ID {game_id}")
-            return game_id
+            
+        print(f"Inserted new game record with ID {game_id}")
+        return game_id
             
     except Exception as e:
         print(f"Error loading game data: {e}")
@@ -246,167 +200,148 @@ def load_game_data(
     finally:
         conn.close()
 
-
 def load_similarity_data(
-    game_file: str,
-    base_dir: str = "../frontend/public"
+    keywords: List[str],
+    prompt_id: str
 ) -> bool:
-    """
-    Load similarity data for a game's keywords into Redis.
-    
-    Args:
-        game_file: Path to the game JSON file
-        base_dir: Base directory for game files
-    
-    Returns:
-        True if similarity data was loaded successfully, False otherwise
-    """
+    """Generate and load similarity data for keywords into Redis."""
     try:
         redis_client = connect_to_redis()
         
-        # Load game data from file
-        file_path = Path(__file__).parent / base_dir / game_file.lstrip('/')
-        game_data = load_json_data(str(file_path))
-        if not game_data:
-            print(f"Failed to load game data from {game_file}")
-            return False
+        # Generate similarity data for all keywords
+        print("\nGenerating similarity data...")
+        similarity_data = generate_embeddings(keywords, 5000)
         
-        # Extract prompt ID from filename for reference
-        prompt_id = Path(game_file).stem
+        # Store in Redis
+        for keyword, similarities in similarity_data.items():
+            # Create Redis key
+            redis_key = f"similarity:{keyword.lower()}"
+            
+            # Store similarity data
+            print(f"Storing {len(similarities)} similarity entries for '{keyword}'")
+            pipeline = redis_client.pipeline()
+            pipeline.delete(redis_key)  # Clear existing data
+            for word, score in similarities.items():
+                pipeline.hset(redis_key, word, score)
+            pipeline.execute()
+            
+            # Add reference to game
+            redis_client.sadd(f"game:{prompt_id}:keywords", keyword.lower())
         
-        # Extract keywords
-        keywords = game_data.get('keywords', [])
-        if not keywords:
-            print(f"No keywords found in game data for {game_file}")
-            return False
-                        
-        # Process each keyword
-        success_count = 0
-        for keyword in keywords:
-            # Create Redis key for this keyword
-            keyword_lower = keyword.lower()
-            redis_key = f"similarity:{keyword_lower}"
-            
-            # Check if data already exists
-            if redis_client.exists(redis_key):
-                print(f"Similarity data for '{keyword}' already exists in Redis")
-                success_count += 1
-                continue
-            
-            # Look for a JSON file with similarity data
-            similarity_file = Path(__file__).parent / base_dir / f"{keyword_lower}.json"
-            
-            # Load similarity data from file if it exists
-            if similarity_file.exists():
-                print(f"Loading similarity data from file for '{keyword}'")
-                similarity_data = load_json_data(str(similarity_file))
-                
-                if not similarity_data:
-                    print(f"Empty similarity data for '{keyword}'")
-                    continue
-                
-                # Store in Redis
-                print(f"Storing {len(similarity_data)} similarity entries in Redis for '{keyword}'")
-                # Clear existing data
-                redis_client.delete(redis_key)
-                
-                # Store new data
-                pipeline = redis_client.pipeline()
-                for word, score in similarity_data.items():
-                    pipeline.hset(redis_key, word, score)
-                pipeline.execute()
-                
-                # Add reference to game
-                redis_client.sadd(f"game:{prompt_id}:keywords", keyword_lower)
-                
-                success_count += 1
-            else:
-                print(f"Cannot find similarity data for '{keyword}'")
-                continue
-        
-        # Store a reference to this game's keywords
+        # Store keyword count
         redis_client.set(f"game:{prompt_id}:count", len(keywords))
         
-        return success_count == len(keywords)
-    
+        return True
+        
+    except Exception as e:
+        print(f"Error loading similarity data: {e}")
+        return False
     finally:
         if 'redis_client' in locals():
             redis_client.close()
 
-
 def schedule_game(
-    game_file: str,
+    game_file: str | Path,
     start_time: Optional[str] = None,
-    base_dir: str = "../frontend/public",
-    combinations_dir: str = "../segmenter/blurry_combinations"
+    base_dir: str = "../frontend/public"
 ) -> bool:
     """
-    Schedule a game by loading it into all databases with the specified start time.
+    Schedule a new game by:
+    1. Loading the game config
+    2. Generating pixelated combinations
+    3. Generating similarity data
+    4. Uploading assets to blob storage
+    5. Loading everything into databases
     
     Args:
-        game_file: Path to the game JSON file
-        start_time: ISO 8601 formatted string for when the game should start
+        game_file: Path to the game JSON config file
+        start_time: Optional ISO 8601 formatted start time
         base_dir: Base directory for game files
-        combinations_dir: Directory containing pixelated combinations
     
     Returns:
-        True if all operations were successful, False otherwise
+        True if all operations succeeded, False otherwise
     """
-    # Load game data from file
-    file_path = Path(__file__).parent / base_dir / game_file.lstrip('/')
-    game_data = load_json_data(str(file_path))
+    print(f"\nScheduling new game from {game_file}")
+    
+    # Load game config
+    game_path = Path(base_dir) / game_file.lstrip('/')
+    game_data = load_json_data(str(game_path))
     if not game_data:
-        print(f"Failed to load game data from {game_file}")
+        print(f"Failed to load game config from {game_file}")
         return False
     
-    # Extract prompt ID from filename
+    # Extract key data
     prompt_id = Path(game_file).stem
-    print(f"Scheduling game {prompt_id} for {start_time or 'now'}")
-    
-    # 1. Upload image to Vercel Blob
     image_path = game_data.get('image')
-    image_url = load_image(image_path, prompt_id, base_dir)
-    if not image_url:
-        print("Failed to upload image to Vercel Blob")
+    keywords = game_data.get('keywords', [])
+    
+    if not image_path or not keywords:
+        print("Error: Game config must specify 'image' and 'keywords'")
         return False
     
-    # 2. Upload pixelated combinations to Vercel Blob
-    pixelation_map = load_pixelated_combinations(prompt_id, combinations_dir)
-    if not pixelation_map:
-        print("Warning: No pixelated combinations were uploaded. Using original image only.")
+    # Process the image and generate pixelated combinations
+    image_url, pixelation_map = process_game_image(
+        image_path,
+        keywords,
+        prompt_id,
+        base_dir
+    )
+    if not image_url:
+        print("Failed to process game image")
+        return False
     
-    # 3. Load game data into PostgreSQL with the image URL and pixelation map
-    game_id = load_game_data(game_file, start_time, image_url, pixelation_map, base_dir)
+    # Load game data into PostgreSQL
+    game_id = load_game_data(game_path, image_url, pixelation_map, start_time)
     if not game_id:
         print("Failed to load game data into PostgreSQL")
         return False
     
-    # 4. Load similarity data into Redis
-    redis_success = load_similarity_data(game_file, base_dir)
+    # Generate and load similarity data into Redis
+    redis_success = load_similarity_data(keywords, prompt_id)
     if not redis_success:
-        print("Failed to load all similarity data into Redis")
+        print("Failed to load similarity data into Redis")
         return False
     
-    print(f"Successfully scheduled game {prompt_id} (ID: {game_id}) for {start_time or 'now'}")
+    print(f"\nSuccessfully scheduled game {prompt_id} (ID: {game_id})")
+    if start_time:
+        print(f"Game will become active at: {start_time}")
+    else:
+        print("Game is active immediately")
+    
     return True
 
-
-def main() -> None:
-    """Entry point for the script."""
-    parser = argparse.ArgumentParser(description="Schedule games for the Unprompted application")
+def main():
+    """Entry point for command line usage."""
+    import argparse
     
-    # Command line arguments
-    parser.add_argument("--game-info", metavar="GAME_FILE", required=True, help="Path to the game JSON file to schedule")
-    parser.add_argument("--start-time", required=True, help="ISO 8601 formatted start time for scheduling the game")
-    parser.add_argument("--combinations-dir", default="../segmenter/blurry_combinations", 
-                      help="Directory containing pixelated image combinations")
+    parser = argparse.ArgumentParser(
+        description="Schedule games for the Unprompted application"
+    )
+    parser.add_argument(
+        "game_file",
+        help="Path to the game JSON config file"
+    )
+    parser.add_argument(
+        "--start-time",
+        help="ISO 8601 formatted start time (e.g. 2024-01-01T00:00:00Z)"
+    )
+    parser.add_argument(
+        "--base-dir",
+        default="../frontend/public",
+        help="Base directory for game files"
+    )
     
     args = parser.parse_args()
     
-    # Schedule the game
-    success = schedule_game(args.game_info, args.start_time, combinations_dir=args.combinations_dir)
-    print(f"Game scheduling {'succeeded' if success else 'failed'}")
-
+    success = schedule_game(
+        args.game_file,
+        args.start_time,
+        args.base_dir
+    )
+    
+    if not success:
+        print("\nGame scheduling failed")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,6 @@
 # Unprompted
 
-A web-based game that challenges players to guess the keywords used in AI-generated image prompts. Test your prompt engineering skills and see how well you can decode AI-generated images!
+A game where players have to guess keywords from an image's prompt.
 
 ![Unprompted Game](frontend/public/random-0.webp)
 
@@ -30,32 +30,67 @@ Unprompted uses a multi-tier architecture:
 - [Backend Documentation](backend/README.md) - Python services for database and game management
 - [Database Setup Guide](backend/DATABASE_SETUP.md) - Instructions for setting up the database components
 
-## Development Setup
+## Setup
 
 ### Frontend
-
 ```bash
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
-The frontend will be available at http://localhost:3000
-
 ### Backend
-
 ```bash
 cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install -r requirements.txt
 ```
 
-To schedule a game:
-
-```bash
-python schedule_game.py --game-info GAME_FILE_PATH --start-time "YYYY-MM-DDTHH:MM:SSZ"
+### Environment Variables
+Create a `.env` file in the backend directory with:
 ```
+DATABASE_URL=postgresql://user:password@localhost:5432/unprompted
+REDIS_URL=redis://localhost:6379
+BLOB_READ_WRITE_TOKEN=blob_read_write_token
+```
+
+## Adding a New Game
+
+1. Generate an image using your preferred AI image generator
+
+2. Save the image to `frontend/public/`
+
+3. Create a game config JSON in `frontend/public/` (e.g., `random-0.json`):
+```json
+{
+    "image": "path/to/image.png",
+    "prompt": "A detailed prompt text with [keywords] to guess",
+    "keywords": ["keyword1", "keyword2", "keyword3"],
+    "speech_type": ["noun", "verb", "adjective"]
+}
+```
+
+4. Run the game scheduler:
+```bash
+cd backend
+python schedule_game.py random-0.json
+```
+
+This will:
+- Generate pixelated image combinations
+- Generate word similarity data
+- Upload assets to blob storage
+- Load everything into the databases
+
+You can optionally schedule a game for the future:
+```bash
+python schedule_game.py random-0.json --start-time "2024-01-01T00:00:00Z"
+```
+
+## Development
+See DEVELOPMENT.md for detailed development setup and guidelines.
 
 ## Contributing
 

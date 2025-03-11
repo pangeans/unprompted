@@ -264,9 +264,42 @@ class Segmenter:
         
         print(f"Saved keyword mapping to {keywords_path}")
 
+def process_image(image_path: str, keywords: list[str], output_dir: str = "masked_images", combinations_dir: str = "blurry_combinations") -> dict[str, str]:
+    """
+    Process an image with the given keywords and return a mapping of combination filenames to their paths.
+    
+    Args:
+        image_path: Path to the image file
+        keywords: List of keywords for segmentation
+        output_dir: Directory to save masks
+        combinations_dir: Directory to save combinations
+        
+    Returns:
+        Dictionary mapping combination filenames to their file paths
+    """
+    try:
+        # Initialize segmenter
+        segmenter = Segmenter(image_path, keywords, output_dir, combinations_dir)
+        
+        # Process the image
+        segmenter.segment_image()
+        
+        # Create a mapping of combination filenames to their paths
+        combinations_path = Path(combinations_dir)
+        pixelation_map = {}
+        
+        # Only look for .webp files that were generated
+        for file_path in combinations_path.glob("*.webp"):
+            pixelation_map[file_path.name] = str(file_path.absolute())
+        
+        return pixelation_map
+        
+    except Exception as e:
+        print(f"Error processing image: {e}")
+        return {}
 
 def main():
-    """Entry point for the script."""
+    """Entry point for command line usage."""
     parser = argparse.ArgumentParser(description="Segment images based on keywords using SAM2")
     parser.add_argument("--image", required=True, help="Path to the input image")
     parser.add_argument("--keywords", nargs="+", required=True, help="List of keywords for segmentation")
@@ -276,18 +309,20 @@ def main():
     args = parser.parse_args()
     
     try:
-        segmenter = Segmenter(
+        pixelation_map = process_image(
             args.image, 
             args.keywords, 
             args.output_dir, 
             args.combinations_dir
         )
-        segmenter.segment_image()
-        print("Segmentation and pixelation completed successfully!")
+        print(f"Successfully generated {len(pixelation_map)} pixelated combinations")
+        print("\nPixelation map:")
+        for filename, path in pixelation_map.items():
+            print(f"{filename} -> {path}")
+            
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

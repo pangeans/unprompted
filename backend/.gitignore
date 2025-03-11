@@ -1,3 +1,8 @@
 
 *.pyc
 .venv/*
+schema.sql
+blurry_combinations/*.webp
+checkpoints/*.pt
+masked_images/*.npy
+masked_images/*.json

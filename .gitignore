@@ -1,6 +1,2 @@
-backend/schema.sql
 .venv/*
-backend/.venv/*
-segmenter/.venv/*
-segmenter/models/*.pth
 .env
