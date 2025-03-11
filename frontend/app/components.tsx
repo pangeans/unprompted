@@ -121,13 +121,11 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
         <input
           type="text"
           value={gameEnded && !isLocked ? targetWord : value} // Show correct word when game ends and input is not locked
-          style={ gameEnded || isLocked ?{ 
+          style={{ 
             width: minWidth,
-            backgroundColor: 'hsl(142,76%,36%)' // Apply speech type background color
-          } : { 
-            width: minWidth,
-            backgroundColor: speechTypeColor // Apply speech type background color
-          } }
+            backgroundColor: (disabled && isLocked) ? '#238c47' : speechTypeColor
+            // Using hex color #238c47 instead of hsl(142,76%,36%) for consistent rendering
+          }}
           onChange={(e) => {
             if (!disabled) handleInputChange(index, e.target.value);
           }}
@@ -172,7 +170,7 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
             "px-3 py-1 rounded-md text-md not-italic",
             "transition-all duration-200 bg-transparent text-center",
             {
-              "bg-[hsl(142,76%,36%)] text-white font-bold": disabled && isLocked,
+              "text-white font-bold": disabled && isLocked,
               "bg-red-500 text-white font-bold": gameEnded && !isLocked, // Red background for incorrect answers when game ends
               "border-red-500 animate-shake": isInvalid,
               "empty:animate-pulse": isEmpty && !disabled,
@@ -216,7 +214,7 @@ export const PromptSection: React.FC<PromptSectionProps> = ({
 // Color interpolation helper
 const interpolateColor = (score: number): string => {
   // HSL colors for better gradients
-  if (score === 1) return 'hsl(142, 76%, 36%)'; // Perfect match green
+  if (score === 1) return '#238c47'; // Using hex color instead of HSL for consistent rendering
   if (score >= 0.8) return `hsl(${120 * score}, 70%, 45%)`; // Green to yellow
   if (score >= 0.5) return `hsl(${120 * score}, 65%, 50%)`; // Yellow to orange
   return `hsl(0, 75%, ${45 + score * 20}%)`; // Red with varying lightness
