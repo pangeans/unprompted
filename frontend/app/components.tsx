@@ -46,18 +46,31 @@ export const MediaSection: React.FC<MediaSectionProps> = ({ media, isVideo = fal
               loop
               muted
               playsInline
-              className="absolute inset-0 w-full h-full"
-              style={{ objectFit: 'contain' }}
+              className="absolute inset-0 w-full h-full transition-opacity duration-300"
+              style={{ objectFit: 'contain', opacity: 0 }}
+              onLoadedData={(e) => {
+                const video = e.currentTarget;
+                video.style.opacity = '1';
+              }}
             />
           ) : (
-            <Image
-              src={media}
-              alt="Guess the Prompt!"
-              fill
-              sizes="500px"
-              className="object-contain"
-              priority
-            />
+            <div className="absolute inset-0 w-full h-full transition-opacity duration-300">
+              <Image
+                src={media}
+                alt="Guess the Prompt!"
+                fill
+                sizes="500px"
+                className="object-contain"
+                priority
+                style={{ transition: 'filter 0.3s ease-in-out' }}
+                onLoadingComplete={(img) => {
+                  // Add a small delay to ensure the new image is ready
+                  setTimeout(() => {
+                    img.style.opacity = '1';
+                  }, 50);
+                }}
+              />
+            </div>
           )}
         </div>
       </CardContent>
@@ -371,17 +384,29 @@ export const GameOverSection: React.FC<GameOverSectionProps> = ({
                     loop
                     muted
                     playsInline
-                    className="absolute inset-0 w-full h-full"
-                    style={{ objectFit: 'contain' }}
+                    className="absolute inset-0 w-full h-full transition-opacity duration-300"
+                    style={{ objectFit: 'contain', opacity: 0 }}
+                    onLoadedData={(e) => {
+                      const video = e.currentTarget;
+                      video.style.opacity = '1';
+                    }}
                   />
                 ) : (
-                  <Image
-                    src={finalMedia}
-                    alt="Final Image"
-                    fill
-                    sizes="300px"
-                    className="object-contain"
-                  />
+                  <div className="absolute inset-0 w-full h-full transition-opacity duration-300">
+                    <Image
+                      src={finalMedia}
+                      alt="Final Image"
+                      fill
+                      sizes="300px"
+                      className="object-contain"
+                      style={{ transition: 'filter 0.3s ease-in-out' }}
+                      onLoadingComplete={(img) => {
+                        setTimeout(() => {
+                          img.style.opacity = '1';
+                        }, 50);
+                      }}
+                    />
+                  </div>
                 )}
               </div>
             </CardContent>
