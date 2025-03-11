@@ -12,6 +12,7 @@ export default function Home() {
   const [speechTypes, setSpeechTypes] = useState<string[]>([]);
   const [pixelationMap, setPixelationMap] = useState<Record<string, string> | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVideo, setIsVideo] = useState(false);
 
   useEffect(() => {
     const loadGame = async () => {
@@ -24,7 +25,8 @@ export default function Home() {
           keywords, 
           similarity_data, 
           speech_types,
-          pixelation_map
+          pixelation_map,
+          media_type
         } = await fetchLatestActiveGame();
         
         setRandomIndex(parseInt(prompt_id.replace(/[^0-9]/g, '')) || 0);
@@ -34,6 +36,7 @@ export default function Home() {
         setSimilarityDict(similarity_data);
         setSpeechTypes(speech_types || []);
         setPixelationMap(pixelation_map);
+        setIsVideo(media_type === 'video');
       } catch (error) {
         console.error('Failed to load game:', error);
       } finally {
@@ -54,6 +57,7 @@ export default function Home() {
       speechTypes={speechTypes}
       pixelationMap={pixelationMap}
       isLoading={isLoading}
+      isVideo={isVideo}
     />
   );
 }

@@ -6,7 +6,8 @@ interface GameResponse {
   image_url: string;
   similarity_data: Record<string, Record<string, number>>;
   speech_types: string[];
-  pixelation_map: Record<string, string> | null;  // Add pixelation_map to the interface
+  pixelation_map: Record<string, string> | null;
+  media_type: 'video' | 'image';
 }
 
 export const fetchLatestActiveGame = async (): Promise<GameResponse> => {

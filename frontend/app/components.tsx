@@ -18,13 +18,14 @@ interface PromptSectionProps {
   speechTypes?: string[]; // Add speech types prop
 }
 
-interface ImageSectionProps {
-  image: string | null;
+interface MediaSectionProps {
+  media: string | null;
+  isVideo?: boolean;
 }
 
-export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => {
-  // If we don't have an image yet, show a placeholder
-  if (!image) {
+export const MediaSection: React.FC<MediaSectionProps> = ({ media, isVideo = false }) => {
+  // If we don't have media yet, show a placeholder
+  if (!media) {
     return (
       <Card className="mb-4 overflow-hidden">
         <CardContent className="p-0 relative">
@@ -34,21 +35,30 @@ export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => {
     );
   }
 
-  // Simple implementation that just shows the current image
-  // The parent component (GameLayout) will handle updating the image URL
-  // when keywords are guessed correctly
   return (
     <Card className="mb-4 overflow-hidden">
-      <CardContent className="p-0 relative">
-        <div className="relative w-[500px] h-[500px]">
-          <Image
-            src={image}
-            alt="Guess the Prompt!"
-            width={500}
-            height={500}
-            className="max-w-full h-auto"
-            priority
-          />
+      <CardContent className="p-0">
+        <div className="relative w-[500px] h-[500px] flex items-center justify-center bg-black/5">
+          {isVideo ? (
+            <video 
+              src={media}
+              autoPlay
+              loop
+              muted
+              playsInline
+              className="absolute inset-0 w-full h-full"
+              style={{ objectFit: 'contain' }}
+            />
+          ) : (
+            <Image
+              src={media}
+              alt="Guess the Prompt!"
+              fill
+              sizes="500px"
+              className="object-contain"
+              priority
+            />
+          )}
         </div>
       </CardContent>
     </Card>
@@ -323,7 +333,8 @@ interface GameOverSectionProps {
   copyToClipboard: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  finalImage?: string | null; // Add final image prop
+  finalMedia?: string | null;
+  isVideo?: boolean;
 }
 
 export const GameOverSection: React.FC<GameOverSectionProps> = ({ 
@@ -331,7 +342,8 @@ export const GameOverSection: React.FC<GameOverSectionProps> = ({
   copyToClipboard, 
   open, 
   onOpenChange,
-  finalImage // Use the final image prop
+  finalMedia,
+  isVideo = false
 }) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-md">
@@ -346,19 +358,31 @@ export const GameOverSection: React.FC<GameOverSectionProps> = ({
         </div>
       </DialogHeader>
       
-      {/* Final unpixelated image */}
-      {finalImage && (
+      {/* Final unpixelated media */}
+      {finalMedia && (
         <div className="my-4 flex justify-center">
           <Card className="overflow-hidden">
-            <CardContent className="p-0 relative">
-              <div className="relative w-full max-w-[300px] mx-auto">
-                <Image
-                  src={finalImage}
-                  alt="Final Image"
-                  width={300}
-                  height={300}
-                  className="max-w-full h-auto"
-                />
+            <CardContent className="p-0">
+              <div className="relative w-[300px] h-[300px] flex items-center justify-center bg-black/5">
+                {isVideo ? (
+                  <video
+                    src={finalMedia}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="absolute inset-0 w-full h-full"
+                    style={{ objectFit: 'contain' }}
+                  />
+                ) : (
+                  <Image
+                    src={finalMedia}
+                    alt="Final Image"
+                    fill
+                    sizes="300px"
+                    className="object-contain"
+                  />
+                )}
               </div>
             </CardContent>
           </Card>

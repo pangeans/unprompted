@@ -29,6 +29,7 @@ from utils import load_json_data
 # Add segmenter to Python path
 import sys
 from segmenter import process_image as process_image_segmentation
+from segmenter import process_video as process_video_segmentation
 
 # Load environment variables
 load_dotenv()
@@ -76,41 +77,64 @@ def upload_to_blob(
         print(f"Error uploading to blob storage: {e}")
         return None
 
-def process_game_image(
-    image_path: str | Path,
+def is_video_file(file_path: str | Path) -> bool:
+    """
+    Check if a file is a video based on its extension.
+    
+    Args:
+        file_path: Path to the file to check
+        
+    Returns:
+        True if the file is a video, False otherwise
+    """
+    video_extensions = ['.mp4', '.gif', '.mov', '.avi', '.webm']
+    return Path(file_path).suffix.lower() in video_extensions
+
+def process_game_media(
+    media_path: str | Path,
     keywords: List[str],
     prompt_id: str,
     base_dir: str = "../frontend/public"
 ) -> tuple[Optional[str], Optional[Dict[str, str]]]:
     """
-    Process a game image:
+    Process a game media file (image or video):
     1. Generate pixelated combinations
-    2. Upload original and pixelated images to blob storage
+    2. Upload original and pixelated media to blob storage
     
     Returns:
-        Tuple of (original image URL, pixelation map with URLs)
+        Tuple of (original media URL, pixelation map with URLs)
     """
-    # Resolve the full path to the image
-    full_path = Path(base_dir) / image_path.lstrip('/')
+    # Resolve the full path to the media file
+    full_path = Path(base_dir) / media_path.lstrip('/')
     if not full_path.exists():
-        print(f"Error: Image file not found: {full_path}")
+        print(f"Error: Media file not found: {full_path}")
         return None, None
         
-    # Upload original image
-    blob_name = f"game-images/{prompt_id}-{Path(image_path).name}"
-    image_url = upload_to_blob(full_path, blob_name)
-    if not image_url:
+    # Upload original media
+    blob_name = f"game-images/{prompt_id}-{Path(media_path).name}"
+    media_url = upload_to_blob(full_path, blob_name)
+    if not media_url:
         return None, None
         
-    # Generate pixelated combinations
+    # Generate pixelated combinations based on file type
     print("\nGenerating pixelated combinations...")
-    pixelation_map = process_image_segmentation(
-        str(full_path),
-        keywords
-    )
+    
+    if is_video_file(full_path):
+        print(f"Processing video file: {full_path}")
+        pixelation_map = process_video_segmentation(
+            str(full_path),
+            keywords
+        )
+    else:
+        print(f"Processing image file: {full_path}")
+        pixelation_map = process_image_segmentation(
+            str(full_path),
+            keywords
+        )
+        
     if not pixelation_map:
         print("Warning: Failed to generate pixelated combinations")
-        return image_url, None
+        return media_url, None
         
     # Upload each pixelated combination
     uploaded_map = {}
@@ -119,7 +143,7 @@ def process_game_image(
         if url := upload_to_blob(file_path, blob_name):
             uploaded_map[filename] = url
     
-    return image_url, uploaded_map
+    return media_url, uploaded_map
 
 def load_game_data(
     game_file: str | Path,
@@ -139,6 +163,9 @@ def load_game_data(
             
         # Extract prompt ID from filename
         prompt_id = Path(game_file).stem
+
+        # Check if the media is a video
+        is_video = is_video_file(game_data.get('image', ''))
         
         # Parse start time or use current time
         try:
@@ -154,17 +181,24 @@ def load_game_data(
         keywords = game_data.get('keywords', [])
         speech_types = game_data.get('speech_type', [])
         
-        # Check for pixelation column
+        # Check for required columns
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT column_name 
                 FROM information_schema.columns 
-                WHERE table_name='games' AND column_name='pixelation_map'
+                WHERE table_name='games'
             """)
-            if cur.fetchone() is None:
+            columns = {row[0] for row in cur.fetchall()}
+            
+            if 'pixelation_map' not in columns:
                 print("Adding pixelation_map column to games table")
                 cur.execute("ALTER TABLE games ADD COLUMN pixelation_map JSONB")
-                conn.commit()
+                
+            if 'media_type' not in columns:
+                print("Adding media_type column to games table")
+                cur.execute("ALTER TABLE games ADD COLUMN media_type VARCHAR(10)")
+                
+            conn.commit()
         
         # Insert into database
         with conn.cursor() as cur:
@@ -172,9 +206,9 @@ def load_game_data(
                 """
                 INSERT INTO games (
                     prompt_id, prompt_text, keywords, speech_types, 
-                    date_active, image_url, pixelation_map
+                    date_active, image_url, pixelation_map, media_type
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
                 (
@@ -184,7 +218,8 @@ def load_game_data(
                     json.dumps(speech_types), 
                     parsed_time, 
                     image_url, 
-                    json.dumps(pixelation_map) if pixelation_map else None
+                    json.dumps(pixelation_map) if pixelation_map else None,
+                    'video' if is_video else 'image'
                 )
             )
             game_id = cur.fetchone()[0]
@@ -279,19 +314,19 @@ def schedule_game(
         print("Error: Game config must specify 'image' and 'keywords'")
         return False
     
-    # Process the image and generate pixelated combinations
-    image_url, pixelation_map = process_game_image(
-        image_path,
+    # Process the media and generate pixelated combinations
+    media_url, pixelation_map = process_game_media(
+        image_path,  # This parameter name is legacy but contains the media path
         keywords,
         prompt_id,
         base_dir
     )
-    if not image_url:
-        print("Failed to process game image")
+    if not media_url:
+        print("Failed to process game media")
         return False
     
     # Load game data into PostgreSQL
-    game_id = load_game_data(game_path, image_url, pixelation_map, start_time)
+    game_id = load_game_data(game_path, media_url, pixelation_map, start_time)
     if not game_id:
         print("Failed to load game data into PostgreSQL")
         return False
@@ -327,7 +362,7 @@ def main():
     )
     parser.add_argument(
         "--base-dir",
-        default="../frontend/public",
+        default="game-configs",
         help="Base directory for game files"
     )
     

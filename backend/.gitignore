@@ -2,7 +2,8 @@
 *.pyc
 .venv/*
 schema.sql
-blurry_combinations/*.webp
+blurry_combinations/*
 checkpoints/*.pt
 masked_images/*.npy
 masked_images/*.json
+video_frames/*.jpg

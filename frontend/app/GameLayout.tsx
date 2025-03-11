@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from "react";
-import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
+import { MediaSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { Button } from "@/components/ui/button";
 import { generateRecap } from "./utils";
 
@@ -13,6 +13,7 @@ interface GameLayoutProps {
   speechTypes?: string[];
   pixelationMap?: Record<string, string> | null;
   isLoading?: boolean;
+  isVideo?: boolean;
 }
 
 const GameLayout: React.FC<GameLayoutProps> = ({ 
@@ -23,7 +24,8 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   similarityDict, 
   speechTypes = [],
   pixelationMap = null,
-  isLoading = false 
+  isLoading = false,
+  isVideo = false
 }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
@@ -48,12 +50,14 @@ const GameLayout: React.FC<GameLayoutProps> = ({
       isLocked ? `${index}` : `${index}blur`
     );
     
-    const keyToFind = imageParts.join('_') + '.webp';
-    console.log("Looking for image key:", keyToFind);
+    // Use .mp4 extension for videos, .webp for images
+    const extension = isVideo ? '.mp4' : '.webp';
+    const keyToFind = imageParts.join('_') + extension;
+    console.log("Looking for image/video key:", keyToFind);
     console.log("Locked state:", locked);
     
     return keyToFind;
-  }, [pixelationMap]);
+  }, [pixelationMap, isVideo]);
 
   // Helper function to update the current image based on locked state
   const updateCurrentImageFromLocked = useCallback((locked: boolean[]) => {
@@ -243,7 +247,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
     return (
       <div className="flex flex-col items-center justify-center min-h-screen p-8">
         <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
-        {/* Image skeleton */}
+        {/* Media skeleton */}
         <div className="w-[300px] h-[300px] bg-gray-200 animate-pulse rounded-lg mb-8" />
         {/* Prompt skeleton */}
         <div className="w-full max-w-2xl space-y-3">
@@ -263,7 +267,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
-      <ImageSection image={currentImage} />
+      <MediaSection media={currentImage} isVideo={isVideo} />
       <PromptSection
         originalPrompt={prompt}
         inputValues={inputValues}
@@ -295,7 +299,8 @@ const GameLayout: React.FC<GameLayoutProps> = ({
             copyToClipboard={copyToClipboard}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
-            finalImage={image} // Pass the original unpixelated image to the dialog
+            finalMedia={image}
+            isVideo={isVideo}
           />
         )}
       </div>
