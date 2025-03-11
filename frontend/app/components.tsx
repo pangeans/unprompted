@@ -22,20 +22,38 @@ interface ImageSectionProps {
   image: string | null;
 }
 
-export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => (
-  <Card className="mb-4">
-    <CardContent className="p-0">
-      {image && (
-        <Image
-          src={image}
-          alt="Guess the Prompt!"
-          width={300}
-          height={300}
-        />
-      )}
-    </CardContent>
-  </Card>
-);
+export const ImageSection: React.FC<ImageSectionProps> = ({ image }) => {
+  // If we don't have an image yet, show a placeholder
+  if (!image) {
+    return (
+      <Card className="mb-4 overflow-hidden">
+        <CardContent className="p-0 relative">
+          <div className="w-[500px] h-[500px] bg-gray-200 animate-pulse" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Simple implementation that just shows the current image
+  // The parent component (GameLayout) will handle updating the image URL
+  // when keywords are guessed correctly
+  return (
+    <Card className="mb-4 overflow-hidden">
+      <CardContent className="p-0 relative">
+        <div className="relative w-[500px] h-[500px]">
+          <Image
+            src={image}
+            alt="Guess the Prompt!"
+            width={500}
+            height={500}
+            className="max-w-full h-auto"
+            priority
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const PromptSection: React.FC<PromptSectionProps> = ({ 
   originalPrompt, 
@@ -305,22 +323,49 @@ interface GameOverSectionProps {
   copyToClipboard: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  finalImage?: string | null; // Add final image prop
 }
 
-export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard, open, onOpenChange }) => (
+export const GameOverSection: React.FC<GameOverSectionProps> = ({ 
+  winningRound, 
+  copyToClipboard, 
+  open, 
+  onOpenChange,
+  finalImage // Use the final image prop
+}) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
         <div className="text-center">
           {winningRound !== null ? (
-            <p className="text-lg mb-6">You won in round {winningRound}! 🎉</p>
+            <p className="text-lg mb-2">You won in round {winningRound}! 🎉</p>
           ) : (
-            <p className="text-lg mb-6">Better luck next time!</p>
+            <p className="text-lg mb-2">Better luck next time!</p>
           )}
         </div>
       </DialogHeader>
-      <Button onClick={copyToClipboard} className="w-full">
+      
+      {/* Final unpixelated image */}
+      {finalImage && (
+        <div className="my-4 flex justify-center">
+          <Card className="overflow-hidden">
+            <CardContent className="p-0 relative">
+              <div className="relative w-full max-w-[300px] mx-auto">
+                <Image
+                  src={finalImage}
+                  alt="Final Image"
+                  width={300}
+                  height={300}
+                  className="max-w-full h-auto"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      
+      <Button onClick={copyToClipboard} className="w-full mt-4">
         Copy Recap to Clipboard
       </Button>
     </DialogContent>

@@ -9,6 +9,7 @@ This script provides functions for:
 2. Loading game data into PostgreSQL database
 3. Loading similarity data into Redis
 4. Scheduling games with a specific start time
+5. Handling pixelated image combinations
 
 Usage:
     python schedule_game.py --game-info GAME_FILE --start-time ISO8601_TIME
@@ -94,10 +95,66 @@ def load_image(
     return blob['url']
 
 
+def load_pixelated_combinations(
+    prompt_id: str,
+    combinations_dir: str = "../segmenter/blurry_combinations"
+) -> Dict[str, str]:
+    """
+    Upload all pixelated image combinations to Vercel Blob Storage.
+    
+    Args:
+        prompt_id: Identifier for the game
+        combinations_dir: Directory containing pixelated combinations
+    
+    Returns:
+        Dictionary mapping combination filenames to their uploaded URLs
+    """
+    # Get the path to the combinations directory
+    combinations_path = Path(__file__).parent / combinations_dir
+    
+    # Check if the combinations directory exists
+    if not combinations_path.exists():
+        print(f"Warning: Combinations directory not found: {combinations_path}")
+        return {}
+    
+    # Get all webp files in the directory
+    combination_files = list(combinations_path.glob("*.webp"))
+    
+    if not combination_files:
+        print(f"Warning: No combination files found in {combinations_path}")
+        return {}
+    
+    print(f"Found {len(combination_files)} pixelated combinations to upload")
+    
+    # Upload each combination and store the mapping
+    pixelation_map = {}
+    for file_path in combination_files:
+        filename = file_path.name
+        
+        # Create a unique blob name
+        blob_name = f"game-images/{prompt_id}-pixelated-{filename}"
+        
+        # Upload to Vercel Blob
+        print(f"Uploading pixelated combination: {filename}")
+        with open(file_path, 'rb') as f:
+            blob = vercel_blob.put(
+                blob_name,
+                f.read(),
+                options={"access": "public"}
+            )
+        
+        # Store the mapping
+        pixelation_map[filename] = blob['url']
+    
+    print(f"Uploaded {len(pixelation_map)} pixelated combinations")
+    return pixelation_map
+
+
 def load_game_data(
     game_file: str,
     start_time: Optional[str] = None,
     image_url: Optional[str] = None,
+    pixelation_map: Optional[Dict[str, str]] = None,
     base_dir: str = "../frontend/public"
 ) -> Optional[int]:
     """
@@ -107,6 +164,7 @@ def load_game_data(
         game_file: Path to the game JSON file
         start_time: ISO 8601 formatted string for when the game should start
         image_url: Optional URL of already uploaded image
+        pixelation_map: Optional dictionary mapping pixelation combinations to URLs
         base_dir: Base directory for game files
     
     Returns:
@@ -140,15 +198,41 @@ def load_game_data(
         keywords = game_data.get('keywords', [])
         speech_types = game_data.get('speech_type', [])  # Get speech types from JSON
         
+        # Check if pixelation column exists, if not add it
+        with conn.cursor() as cur:
+            # Check if column exists
+            cur.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='games' AND column_name='pixelation_map'
+            """)
+            column_exists = cur.fetchone() is not None
+            
+            if not column_exists:
+                print("Adding pixelation_map column to games table")
+                cur.execute("ALTER TABLE games ADD COLUMN pixelation_map JSONB")
+                conn.commit()
+        
         # Insert into database
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO games (prompt_id, prompt_text, keywords, speech_types, date_active, image_url)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO games (
+                    prompt_id, prompt_text, keywords, speech_types, 
+                    date_active, image_url, pixelation_map
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 RETURNING id
                 """,
-                (prompt_id, prompt_text, json.dumps(keywords), json.dumps(speech_types), parsed_time, image_url)
+                (
+                    prompt_id, 
+                    prompt_text, 
+                    json.dumps(keywords), 
+                    json.dumps(speech_types), 
+                    parsed_time, 
+                    image_url, 
+                    json.dumps(pixelation_map) if pixelation_map else None
+                )
             )
             game_id = cur.fetchone()[0]
             conn.commit()
@@ -253,7 +337,8 @@ def load_similarity_data(
 def schedule_game(
     game_file: str,
     start_time: Optional[str] = None,
-    base_dir: str = "../frontend/public"
+    base_dir: str = "../frontend/public",
+    combinations_dir: str = "../segmenter/blurry_combinations"
 ) -> bool:
     """
     Schedule a game by loading it into all databases with the specified start time.
@@ -262,6 +347,7 @@ def schedule_game(
         game_file: Path to the game JSON file
         start_time: ISO 8601 formatted string for when the game should start
         base_dir: Base directory for game files
+        combinations_dir: Directory containing pixelated combinations
     
     Returns:
         True if all operations were successful, False otherwise
@@ -284,13 +370,18 @@ def schedule_game(
         print("Failed to upload image to Vercel Blob")
         return False
     
-    # 2. Load game data into PostgreSQL with the image URL
-    game_id = load_game_data(game_file, start_time, image_url, base_dir)
+    # 2. Upload pixelated combinations to Vercel Blob
+    pixelation_map = load_pixelated_combinations(prompt_id, combinations_dir)
+    if not pixelation_map:
+        print("Warning: No pixelated combinations were uploaded. Using original image only.")
+    
+    # 3. Load game data into PostgreSQL with the image URL and pixelation map
+    game_id = load_game_data(game_file, start_time, image_url, pixelation_map, base_dir)
     if not game_id:
         print("Failed to load game data into PostgreSQL")
         return False
     
-    # 3. Load similarity data into Redis
+    # 4. Load similarity data into Redis
     redis_success = load_similarity_data(game_file, base_dir)
     if not redis_success:
         print("Failed to load all similarity data into Redis")
@@ -306,11 +397,14 @@ def main() -> None:
     
     # Command line arguments
     parser.add_argument("--game-info", metavar="GAME_FILE", required=True, help="Path to the game JSON file to schedule")
-    parser.add_argument("--start-time", required=True, help="ISO 8601 formatted start time for scheduling the game")    
+    parser.add_argument("--start-time", required=True, help="ISO 8601 formatted start time for scheduling the game")
+    parser.add_argument("--combinations-dir", default="../segmenter/blurry_combinations", 
+                      help="Directory containing pixelated image combinations")
+    
     args = parser.parse_args()
     
     # Schedule the game
-    success = schedule_game(args.game_info, args.start_time)
+    success = schedule_game(args.game_info, args.start_time, combinations_dir=args.combinations_dir)
     print(f"Game scheduling {'succeeded' if success else 'failed'}")
 
 

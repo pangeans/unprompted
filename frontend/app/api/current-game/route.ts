@@ -17,7 +17,7 @@ export async function GET() {
   try {
     // Query for active games (games whose start time has passed)
     const { rows } = await pgClient.query(`
-      SELECT id, prompt_id, prompt_text, keywords, speech_types, image_url, date_active
+      SELECT id, prompt_id, prompt_text, keywords, speech_types, image_url, pixelation_map, date_active
       FROM games
       WHERE date_active <= NOW()
       ORDER BY date_active DESC
@@ -44,10 +44,15 @@ export async function GET() {
 
     // Randomly select one game if there are multiple games with the same date
     const selectedGame = latestGames[Math.floor(Math.random() * latestGames.length)];
-    const { id, prompt_id, prompt_text, keywords, image_url } = selectedGame;
+    const { id, prompt_id, prompt_text, keywords, image_url, pixelation_map } = selectedGame;
     
     // Parse keywords from JSON string if needed
     const parsedKeywords = typeof keywords === 'string' ? JSON.parse(keywords) : keywords;
+    
+    // Parse pixelation map from JSON string if needed
+    const parsedPixelationMap = pixelation_map ? 
+      (typeof pixelation_map === 'string' ? JSON.parse(pixelation_map) : pixelation_map) : 
+      null;
 
     // Fetch similarity data for each keyword from Redis
     const similarityData: Record<string, Record<string, number>> = {};
@@ -76,7 +81,8 @@ export async function GET() {
       keywords: parsedKeywords,
       image_url,
       similarity_data: similarityData,
-      speech_types: selectedGame.speech_types || []  // Add speech_types to response
+      speech_types: selectedGame.speech_types || [],  // Add speech_types to response
+      pixelation_map: parsedPixelationMap  // Add pixelation_map to response
     });
   } catch (error) {
     console.error('Error fetching game data:', error);

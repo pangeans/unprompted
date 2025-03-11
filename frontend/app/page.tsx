@@ -10,19 +10,30 @@ export default function Home() {
   const [keywords, setRandomKeywords] = useState<string[]>([]);
   const [similarityDict, setSimilarityDict] = useState<Record<string, Record<string, number>>>({});
   const [speechTypes, setSpeechTypes] = useState<string[]>([]);
-  const [isLoading, setIsLoading] = useState(true); // Add loading state
+  const [pixelationMap, setPixelationMap] = useState<Record<string, string> | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const loadGame = async () => {
       try {
         setIsLoading(true);
-        const { prompt_id, image_url, prompt_text, keywords, similarity_data, speech_types } = await fetchLatestActiveGame();
+        const { 
+          prompt_id, 
+          image_url, 
+          prompt_text, 
+          keywords, 
+          similarity_data, 
+          speech_types,
+          pixelation_map
+        } = await fetchLatestActiveGame();
+        
         setRandomIndex(parseInt(prompt_id.replace(/[^0-9]/g, '')) || 0);
         setRandomImage(image_url);
         setRandomPrompt(prompt_text);
         setRandomKeywords(keywords);
         setSimilarityDict(similarity_data);
         setSpeechTypes(speech_types || []);
+        setPixelationMap(pixelation_map);
       } catch (error) {
         console.error('Failed to load game:', error);
       } finally {
@@ -41,6 +52,7 @@ export default function Home() {
       keywords={keywords}
       similarityDict={similarityDict}
       speechTypes={speechTypes}
+      pixelationMap={pixelationMap}
       isLoading={isLoading}
     />
   );

@@ -5,3 +5,4 @@ spacy
 redis
 vercel_blob
 numpy
+python-dateutil

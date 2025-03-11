@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ImageSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { Button } from "@/components/ui/button";
 import { generateRecap } from "./utils";
@@ -11,7 +11,8 @@ interface GameLayoutProps {
   keywords: string[];
   similarityDict: Record<string, Record<string, number>>;
   speechTypes?: string[];
-  isLoading?: boolean; // Add loading prop
+  pixelationMap?: Record<string, string> | null;
+  isLoading?: boolean;
 }
 
 const GameLayout: React.FC<GameLayoutProps> = ({ 
@@ -21,7 +22,8 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   keywords, 
   similarityDict, 
   speechTypes = [],
-  isLoading = false // Default to false
+  pixelationMap = null,
+  isLoading = false 
 }) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
@@ -31,13 +33,97 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  
+  // State for current displayed image
+  const [currentImage, setCurrentImage] = useState<string | null>(null);
 
+  // Helper function to get image key from locked inputs
+  const getImageKeyFromLocked = useCallback((locked: boolean[]) => {
+    if (!pixelationMap || Object.keys(pixelationMap).length === 0) {
+      return null;
+    }
+    
+    // Create a key for the image based on which keywords are unlocked
+    const imageParts = locked.map((isLocked, index) => 
+      isLocked ? `${index}` : `${index}blur`
+    );
+    
+    const keyToFind = imageParts.join('_') + '.webp';
+    console.log("Looking for image key:", keyToFind);
+    console.log("Locked state:", locked);
+    
+    return keyToFind;
+  }, [pixelationMap]);
+
+  // Helper function to update the current image based on locked state
+  const updateCurrentImageFromLocked = useCallback((locked: boolean[]) => {
+    // Use the original image if game is ended
+    if (gameEnded && image) {
+      console.log("Game ended - showing original image");
+      setCurrentImage(image);
+      return;
+    }
+    
+    // If we have a pixelation map, use it to select the right image
+    if (pixelationMap && Object.keys(pixelationMap).length > 0) {
+      const imageKey = getImageKeyFromLocked(locked);
+      
+      if (imageKey && pixelationMap[imageKey]) {
+        console.log("Found matching image key:", imageKey);
+        setCurrentImage(pixelationMap[imageKey]);
+      } else {
+        // If no matching key is found, try to find the fully pixelated image
+        console.log("No matching key found, looking for fully pixelated image");
+        // Find a key where all segments are pixelated
+        const allPixelatedKey = Object.keys(pixelationMap).find(key => 
+          keywords.every((_, i) => key.includes(`${i}blur`))
+        );
+        
+        if (allPixelatedKey) {
+          console.log("Using fully pixelated image:", allPixelatedKey);
+          setCurrentImage(pixelationMap[allPixelatedKey]);
+        } else {
+          // Fallback to original image if no pixelated images are found
+          console.log("No pixelated images found, using original image");
+          setCurrentImage(image);
+        }
+      }
+    } else {
+      // No pixelation map, use the original image
+      console.log("No pixelation map, using original image");
+      setCurrentImage(image);
+    }
+  }, [gameEnded, image, pixelationMap, keywords, getImageKeyFromLocked]);
+
+  // Find the fully pixelated image key on initial load
+  useEffect(() => {
+    if (pixelationMap && Object.keys(pixelationMap).length > 0 && keywords.length > 0) {
+      // Find a key where all segments are pixelated
+      const allBlurred = Array(keywords.length).fill(false);
+      updateCurrentImageFromLocked(allBlurred);
+    } else {
+      // No pixelation map, use the original image
+      setCurrentImage(image);
+    }
+  }, [pixelationMap, keywords, image, updateCurrentImageFromLocked]);
+
+  // Update current image whenever locked inputs change
+  useEffect(() => {
+    updateCurrentImageFromLocked(lockedInputs);
+  }, [lockedInputs, updateCurrentImageFromLocked]);
+
+  // Rest of the code remains the same...
+  
   // Reset states when keywords change
   useEffect(() => {
     setInputValues(Array(keywords.length).fill(""));
     setLockedInputs(Array(keywords.length).fill(false));
     setInvalidInputs(Array(keywords.length).fill(false));
     setDialogOpen(false);
+    setRound(1);
+    setGuessHistory([]);
+    setGameEnded(false);
+    setWinningRound(null);
   }, [keywords]);
 
   // Show dialog when game ends
@@ -93,6 +179,12 @@ const GameLayout: React.FC<GameLayoutProps> = ({
     const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
 
     inputValues.forEach((word, index) => {
+      if (lockedInputs[index]) {
+        // Keep previously correct answers
+        result.push({ word: keywords[index], score: 1 });
+        return;
+      }
+
       let score = 0;
       const keyword = cleanWord(keywords[index]);
       const wordLower = cleanWord(word);
@@ -113,12 +205,14 @@ const GameLayout: React.FC<GameLayoutProps> = ({
 
       // Lock the input if it exactly matches the target keyword
       if (wordLower === keyword) {
+        console.log(`Correct guess for keyword ${index}: "${keyword}"`);
         newLocked[index] = true;
         newInputValues[index] = keywords[index]; // Use original casing
       }
     });
 
     setLockedInputs(newLocked);
+    console.log("Updated locked inputs:", newLocked);
     
     // Prepare next round's inputs: locked values remain, others empty
     const nextInputs = newLocked.map((locked, i) => 
@@ -169,7 +263,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
-      <ImageSection image={image} />
+      <ImageSection image={currentImage} />
       <PromptSection
         originalPrompt={prompt}
         inputValues={inputValues}
@@ -178,7 +272,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
         gameEnded={gameEnded}
         lockedInputs={lockedInputs}
         invalidInputs={invalidInputs}
-        speechTypes={speechTypes} // Pass speech types to PromptSection
+        speechTypes={speechTypes}
       />
       <Button 
         onClick={handleSubmit}
@@ -201,6 +295,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
             copyToClipboard={copyToClipboard}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
+            finalImage={image} // Pass the original unpixelated image to the dialog
           />
         )}
       </div>

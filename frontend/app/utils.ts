@@ -18,7 +18,8 @@ interface GameData {
   prompt: string;
   keywords: string[];
   similarity_files: string[];
-  speech_type?: string[]; // Added speech_type to the interface
+  speech_type?: string[];
+  pixelation_map?: Record<string, string> | null;  // Add pixelation_map to the interface
 }
 
 // Import the database API service
@@ -36,7 +37,8 @@ export const getRandomImageAndPrompt = async () => {
       prompt: gameData.prompt_text, 
       keywords: gameData.keywords,
       similarityDict: gameData.similarity_data,
-      speechTypes: [] // This field is optional and might not be in the database yet
+      speechTypes: gameData.speech_types || [],
+      pixelationMap: gameData.pixelation_map
     };
   } catch (error) {
     console.error('Failed to fetch game data:', error);
@@ -67,7 +69,8 @@ export const getRandomImageAndPrompt = async () => {
       prompt: localGameData.prompt, 
       keywords: localGameData.keywords,
       similarityDict,
-      speechTypes: localGameData.speech_type || []
+      speechTypes: localGameData.speech_type || [],
+      pixelationMap: localGameData.pixelation_map || null
     };
   }
 };
