@@ -307,21 +307,47 @@ interface GameOverSectionProps {
   copyToClipboard: () => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  originalImage: string; // Added original image
+  prompt: string; // Added prompt
 }
 
-export const GameOverSection: React.FC<GameOverSectionProps> = ({ winningRound, copyToClipboard, open, onOpenChange }) => (
+export const GameOverSection: React.FC<GameOverSectionProps> = ({ 
+  winningRound, 
+  copyToClipboard, 
+  open, 
+  onOpenChange,
+  originalImage,
+  prompt 
+}) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
         <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
         <div className="text-center">
           {winningRound !== null ? (
-            <p className="text-lg mb-6">You won in round {winningRound}! 🎉</p>
+            <p className="text-lg mb-2">You won in round {winningRound}! 🎉</p>
           ) : (
-            <p className="text-lg mb-6">Better luck next time!</p>
+            <p className="text-lg mb-2">Better luck next time!</p>
           )}
         </div>
       </DialogHeader>
+      
+      {/* Display the original unblurred image */}
+      <div className="flex justify-center mb-3">
+        <Image
+          src={originalImage}
+          alt="Original Image"
+          width={250}
+          height={250}
+          className="rounded-md"
+        />
+      </div>
+      
+      {/* Show the full prompt */}
+      <div className="text-center text-sm mb-4 italic">
+        <p>"{prompt}"</p>
+      </div>
+      
       <Button onClick={copyToClipboard} className="w-full">
         Copy Recap to Clipboard
       </Button>

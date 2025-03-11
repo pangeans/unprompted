@@ -26,10 +26,14 @@ export const getRandomImageAndPrompt = async () => {
   const response = await fetch(`/random-${randomIndex}/game_config.json`);
   const gameData: GameData = await response.json();
   
-  // Use the image path from config if it's absolute, otherwise construct based on folder
-  const imagePath = gameData.image.startsWith('/')
-    ? `/random-${randomIndex}/original_image.webp` // Use original_image.webp from the folder
-    : `/random-${randomIndex}/${gameData.image}`; 
+  // Path for original unblurred image (to show at the end)
+  const originalImagePath = `/random-${randomIndex}/original_image.webp`;
+  
+  // Path for fully blurred image (starting point)
+  const blurredImagePath = `/random-${randomIndex}/blurred_images/0blur_1blur_2blur_3blur_4blur.webp`;
+  
+  // Path pattern for partially blurred images (will be constructed dynamically based on guessed keywords)
+  const blurPatternBase = `/random-${randomIndex}/blurred_images/`;
   
   // Load all similarity files from the new path structure
   const similarityPromises = gameData.similarity_files.map(file => {
@@ -50,7 +54,9 @@ export const getRandomImageAndPrompt = async () => {
 
   return { 
     randomIndex, 
-    image: imagePath, // Use the updated image path
+    image: blurredImagePath, // Start with fully blurred image
+    originalImage: originalImagePath, // Original unblurred image for game over
+    blurPatternBase, // Base path for constructing partial blur images
     prompt: gameData.prompt, 
     keywords: gameData.keywords,
     similarityDict,

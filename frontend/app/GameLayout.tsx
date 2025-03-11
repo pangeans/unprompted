@@ -7,13 +7,24 @@ import { generateRecap } from "./utils";
 interface GameLayoutProps {
   randomIndex: number;
   image: string | null;
+  originalImage: string; // Added original unblurred image
+  blurPatternBase: string; // Added blur pattern base path
   prompt: string;
   keywords: string[];
   similarityDict: Record<string, Record<string, number>>;
-  speechTypes?: string[]; // Add speech types to props interface
+  speechTypes?: string[];
 }
 
-const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, keywords, similarityDict, speechTypes = [] }) => {
+const GameLayout: React.FC<GameLayoutProps> = ({ 
+  randomIndex, 
+  image, 
+  originalImage, 
+  blurPatternBase,
+  prompt, 
+  keywords, 
+  similarityDict, 
+  speechTypes = [] 
+}) => {
   const [round, setRound] = useState(1);
   const [inputValues, setInputValues] = useState<string[]>(Array(keywords.length).fill(""));
   const [lockedInputs, setLockedInputs] = useState<boolean[]>(Array(keywords.length).fill(false));
@@ -22,6 +33,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [currentImage, setCurrentImage] = useState<string | null>(image); // Track current image
 
   // Reset states when keywords change
   useEffect(() => {
@@ -29,14 +41,17 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     setLockedInputs(Array(keywords.length).fill(false));
     setInvalidInputs(Array(keywords.length).fill(false));
     setDialogOpen(false);
-  }, [keywords]);
+    setCurrentImage(image);
+  }, [keywords, image]);
 
   // Show dialog when game ends
   useEffect(() => {
     if (gameEnded) {
       setDialogOpen(true);
+      // If game ended, show original unblurred image
+      setCurrentImage(originalImage);
     }
-  }, [gameEnded]);
+  }, [gameEnded, originalImage]);
 
   // Handle Enter key to reopen dialog
   useEffect(() => {
@@ -63,6 +78,30 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     }
   };
 
+  // Function to update the current image based on guessed keywords
+  const updateCurrentImage = (guessedIndices: number[]) => {
+    // Create the filename parts for the blur pattern
+    const blurParts: string[] = [];
+    
+    // For each keyword index
+    for (let i = 0; i < keywords.length; i++) {
+      // If the keyword is not guessed (locked), add it as a blurred part
+      if (!guessedIndices.includes(i)) {
+        blurParts.push(`${i}blur`);
+      } else {
+        // Otherwise add it as an unblurred part
+        blurParts.push(`${i}`);
+      }
+    }
+    
+    // Sort the blur parts for consistency with how the filenames were generated
+    blurParts.sort();
+    
+    // Construct the image path
+    const newImagePath = `${blurPatternBase}${blurParts.join('_')}.webp`;
+    setCurrentImage(newImagePath);
+  };
+
   const handleSubmit = () => {
     if (gameEnded) return;
 
@@ -79,6 +118,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
     const result: { word: string; score: number }[] = [];
     const newLocked = [...lockedInputs];
     const newInputValues = [...inputValues];
+    const newlyCorrectIndices: number[] = [];
 
     // Helper function to clean words for comparison
     const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
@@ -104,6 +144,9 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
 
       // Lock the input if it exactly matches the target keyword
       if (wordLower === keyword) {
+        if (!newLocked[index]) {
+          newlyCorrectIndices.push(index); // Track newly correct guesses
+        }
         newLocked[index] = true;
         newInputValues[index] = keywords[index]; // Use original casing
       }
@@ -120,12 +163,24 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
 
     setGuessHistory(prev => [...prev, result]);
 
+    // Get indices of all correctly guessed keywords
+    const correctIndices = newLocked
+      .map((locked, index) => locked ? index : -1)
+      .filter(index => index !== -1);
+    
+    // Update the image if any new correct guesses were made
+    if (newlyCorrectIndices.length > 0) {
+      updateCurrentImage(correctIndices);
+    }
+
     const greenMatches = newLocked.filter(locked => locked).length;
     if (round >= 5 || greenMatches === keywords.length) {
       setGameEnded(true);
       if (greenMatches === keywords.length) {
         setWinningRound(round);
       }
+      // Game over - show original unblurred image
+      setCurrentImage(originalImage);
     } else {
       setRound(prev => prev + 1);
     }
@@ -139,7 +194,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-8">
       <h1 className="text-2xl font-bold mb-4">unprompted.</h1>
-      <ImageSection image={image} />
+      <ImageSection image={currentImage} />
       <PromptSection
         originalPrompt={prompt}
         inputValues={inputValues}
@@ -148,7 +203,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
         gameEnded={gameEnded}
         lockedInputs={lockedInputs}
         invalidInputs={invalidInputs}
-        speechTypes={speechTypes} // Pass speech types to PromptSection
+        speechTypes={speechTypes}
       />
       <Button 
         onClick={handleSubmit}
@@ -171,6 +226,8 @@ const GameLayout: React.FC<GameLayoutProps> = ({ randomIndex, image, prompt, key
             copyToClipboard={copyToClipboard}
             open={dialogOpen}
             onOpenChange={setDialogOpen}
+            originalImage={originalImage}
+            prompt={prompt}
           />
         )}
       </div>

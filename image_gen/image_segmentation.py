@@ -8,13 +8,13 @@ from PIL import Image
 from sam2.build_sam import build_sam2
 from sam2.automatic_mask_generator import SAM2AutomaticMaskGenerator
 
-# # select the device for computation
-# if torch.cuda.is_available():
-#     device = torch.device("cuda")
-# elif torch.backends.mps.is_available():
-#     device = torch.device("mps")
-#else:
-device = torch.device("cpu")
+# select the device for computation
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 print(f"using device: {device}")
 
 if device.type == "cuda":
@@ -61,18 +61,11 @@ def generate_masks(image):
     model_cfg = "configs/sam2.1/sam2.1_hiera_l.yaml"
 
     sam2 = build_sam2(model_cfg, sam2_checkpoint, device=device, apply_postprocessing=False)
-    mask_generator = SAM2AutomaticMaskGenerator(sam2)
-    #    model=sam2,
-    #    points_per_side=32,
-    #    points_per_batch=64,
-    #    pred_iou_thresh=0.8,
-    #    stability_score_thresh=0.95,
-    #    stability_score_offset=1.0,
-    #    crop_n_layers=1,
-    #    box_nms_thresh=0.7,
-    #    crop_n_points_downscale_factor=2,
-    #    min_mask_region_area=25.0,
-    #    use_m2m=True)
+    mask_generator = SAM2AutomaticMaskGenerator(
+        model=sam2,
+        points_per_side=32,     # Reduce from 64 to get fewer, larger segments
+        points_per_batch=64,
+    )
 
     masks = mask_generator.generate(image)
 
@@ -239,18 +232,23 @@ def generate_blurry_images(image, image_dirs, output_dir="blurry_combinations"):
     return output_dir
 
 if __name__ == "__main__":    
-    image = Image.open('../frontend/public/random-1/original_image.webp')
-    image = np.array(image.convert("RGB"))
+    #image = Image.open('../frontend/public/random-2/original_image.webp')
+    #image = np.array(image.convert("RGB"))
     #masks = generate_masks(image)
     ## Generate and save masked images
     #output_dir = generate_masked_images(image, masks)
+    image = Image.open('../frontend/public/random-0/original_image.webp')
+    image = np.array(image.convert("RGB"))
+    masks = generate_masks(image)
+    # Generate and save masked images
+    output_dir = generate_masked_images(image, masks)
     
-    # Example with multiple masks per keyword
-    image_dirs = {
-        "sad": ["masked_images/mask_29.webp"], 
-        "ice": ["masked_images/mask_3.webp"],
-        "sculpture": ["masked_images/mask_16.webp"],
-        "computer": ["masked_images/mask_8.webp", "masked_images/mask_28.webp"],  # Multiple masks
-        "underwater": ["masked_images/mask_18.webp"]  # Multiple masks
-    }
-    generate_blurry_images(image, image_dirs)
+    ## Example with multiple masks per keyword
+    #image_dirs = {
+    #    "sad": ["masked_images/mask_29.webp"], 
+    #    "ice": ["masked_images/mask_3.webp"],
+    #    "sculpture": ["masked_images/mask_16.webp"],
+    #    "computer": ["masked_images/mask_8.webp", "masked_images/mask_28.webp"],  # Multiple masks
+    #    "underwater": ["masked_images/mask_18.webp"]  # Multiple masks
+    #}
+    #generate_blurry_images(image, image_dirs)
