@@ -22,6 +22,90 @@ interface GameData {
   pixelation_map?: Record<string, string> | null;  // Add pixelation_map to the interface
 }
 
+// Cookie handling utilities for game completion tracking
+export const hasPlayedToday = (gameId: string): boolean => {
+  if (typeof document === 'undefined') return false;
+  
+  const cookie = getCookie(`unprompted_played_${gameId}`);
+  return !!cookie;
+};
+
+export const markGameAsPlayed = (gameId: string): void => {
+  if (typeof document === 'undefined') return;
+
+  // Set cookie that expires at the end of the day (midnight)
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(23, 59, 59, 999);
+  
+  setCookie(`unprompted_played_${gameId}`, 'true', {
+    expires: midnight,
+    path: '/'
+  });
+};
+
+export const getNextGameTime = async (): Promise<Date | null> => {
+  try {
+    const response = await fetch('/api/next-game-time');
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    return data.nextGameTime ? new Date(data.nextGameTime) : null;
+  } catch (error) {
+    console.error('Failed to fetch next game time:', error);
+    return null;
+  }
+};
+
+export const formatTimeRemaining = (targetDate: Date): string => {
+  const now = new Date();
+  const diffMs = targetDate.getTime() - now.getTime();
+  
+  if (diffMs <= 0) return "Available now";
+  
+  const diffSec = Math.floor(diffMs / 1000);
+  const hours = Math.floor(diffSec / 3600);
+  const minutes = Math.floor((diffSec % 3600) / 60);
+  
+  return `${hours}h ${minutes}m`;
+};
+
+// Helper functions for cookie management
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  
+  const cookies = document.cookie.split(';');
+  for (let i = 0; i < cookies.length; i++) {
+    const cookie = cookies[i].trim();
+    if (cookie.startsWith(name + '=')) {
+      return cookie.substring(name.length + 1);
+    }
+  }
+  return null;
+};
+
+interface CookieOptions {
+  expires?: Date;
+  path?: string;
+  domain?: string;
+  secure?: boolean;
+  sameSite?: 'strict' | 'lax' | 'none';
+}
+
+const setCookie = (name: string, value: string, options: CookieOptions = {}): void => {
+  if (typeof document === 'undefined') return;
+  
+  let cookieString = `${name}=${value}`;
+  
+  if (options.expires) cookieString += `; expires=${options.expires.toUTCString()}`;
+  if (options.path) cookieString += `; path=${options.path}`;
+  if (options.domain) cookieString += `; domain=${options.domain}`;
+  if (options.secure) cookieString += '; secure';
+  if (options.sameSite) cookieString += `; samesite=${options.sameSite}`;
+  
+  document.cookie = cookieString;
+};
+
 // Import the database API service
 import { fetchLatestActiveGame } from './services/gameData';
 

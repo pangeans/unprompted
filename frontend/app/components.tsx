@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getNextGameTime, formatTimeRemaining } from './utils';
 
 interface PromptSectionProps {
   originalPrompt: string;
@@ -348,6 +349,7 @@ interface GameOverSectionProps {
   onOpenChange: (open: boolean) => void;
   finalMedia?: string | null;
   isVideo?: boolean;
+  alreadyPlayed?: boolean;
 }
 
 export const GameOverSection: React.FC<GameOverSectionProps> = ({ 
@@ -356,67 +358,108 @@ export const GameOverSection: React.FC<GameOverSectionProps> = ({
   open, 
   onOpenChange,
   finalMedia,
-  isVideo = false
-}) => (
-  <Dialog open={open} onOpenChange={onOpenChange}>
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
-        <div className="text-center">
-          {winningRound !== null ? (
-            <p className="text-lg mb-2">You won in round {winningRound}! 🎉</p>
-          ) : (
-            <p className="text-lg mb-2">Better luck next time!</p>
-          )}
-        </div>
-      </DialogHeader>
+  isVideo = false,
+  alreadyPlayed = false
+}) => {
+  const [nextGameTime, setNextGameTime] = useState<Date | null>(null);
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
+  
+  // Fetch next game time when component mounts
+  useEffect(() => {
+    const fetchNextGame = async () => {
+      const time = await getNextGameTime();
+      setNextGameTime(time);
       
-      {/* Final unpixelated media */}
-      {finalMedia && (
-        <div className="my-4 flex justify-center">
-          <Card className="overflow-hidden">
-            <CardContent className="p-0">
-              <div className="relative w-[300px] h-[300px] flex items-center justify-center bg-black/5">
-                {isVideo ? (
-                  <video
-                    src={finalMedia}
-                    autoPlay
-                    loop
-                    muted
-                    playsInline
-                    className="absolute inset-0 w-full h-full transition-opacity duration-300"
-                    style={{ objectFit: 'contain', opacity: 0 }}
-                    onLoadedData={(e) => {
-                      const video = e.currentTarget;
-                      video.style.opacity = '1';
-                    }}
-                  />
-                ) : (
-                  <div className="absolute inset-0 w-full h-full transition-opacity duration-300">
-                    <Image
+      if (time) {
+        setTimeRemaining(formatTimeRemaining(time));
+      }
+    };
+    
+    fetchNextGame();
+    
+    // Update the countdown every minute
+    const intervalId = setInterval(() => {
+      if (nextGameTime) {
+        setTimeRemaining(formatTimeRemaining(nextGameTime));
+      }
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(intervalId);
+  }, [nextGameTime]); // Added nextGameTime to dependency array
+  
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold text-center">Game Over!</DialogTitle>
+          <div className="text-center">
+            {alreadyPlayed ? (
+              <p className="text-lg mb-2">You&apos;ve already played today&apos;s game.</p>
+            ) : winningRound !== null ? (
+              <p className="text-lg mb-2">You won in round {winningRound}! 🎉</p>
+            ) : (
+              <p className="text-lg mb-2">Better luck next time!</p>
+            )}
+          </div>
+        </DialogHeader>
+        
+        {/* Final unpixelated media */}
+        {finalMedia && (
+          <div className="my-4 flex justify-center">
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                <div className="relative w-[300px] h-[300px] flex items-center justify-center bg-black/5">
+                  {isVideo ? (
+                    <video
                       src={finalMedia}
-                      alt="Final Image"
-                      fill
-                      sizes="300px"
-                      className="object-contain"
-                      style={{ transition: 'filter 0.3s ease-in-out' }}
-                      onLoadingComplete={(img) => {
-                        setTimeout(() => {
-                          img.style.opacity = '1';
-                        }, 50);
+                      autoPlay
+                      loop
+                      muted
+                      playsInline
+                      className="absolute inset-0 w-full h-full transition-opacity duration-300"
+                      style={{ objectFit: 'contain', opacity: 0 }}
+                      onLoadedData={(e) => {
+                        const video = e.currentTarget;
+                        video.style.opacity = '1';
                       }}
                     />
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full transition-opacity duration-300">
+                      <Image
+                        src={finalMedia}
+                        alt="Final Image"
+                        fill
+                        sizes="300px"
+                        className="object-contain"
+                        style={{ transition: 'filter 0.3s ease-in-out' }}
+                        onLoadingComplete={(img) => {
+                          setTimeout(() => {
+                            img.style.opacity = '1';
+                          }, 50);
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+        
+        {/* Next game timer */}
+        <div className="text-center mt-2 mb-2">
+          <h3 className="text-sm font-semibold mb-1">Next game:</h3>
+          {nextGameTime ? (
+            <p className="text-lg font-bold">{timeRemaining}</p>
+          ) : (
+            <p className="text-lg text-gray-600">No games currently scheduled.</p>
+          )}
         </div>
-      )}
-      
-      <Button onClick={copyToClipboard} className="w-full mt-4">
-        Copy Recap to Clipboard
-      </Button>
-    </DialogContent>
-  </Dialog>
-);
+        
+        <Button onClick={copyToClipboard} className="w-full mt-4">
+          Copy Recap to Clipboard
+        </Button>
+      </DialogContent>
+    </Dialog>
+  );
+};

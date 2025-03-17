@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { MediaSection, PromptSection, GuessHistorySection, GameOverSection } from "./components";
 import { Button } from "@/components/ui/button";
-import { generateRecap } from "./utils";
+import { generateRecap, hasPlayedToday, markGameAsPlayed } from "./utils";
 
 interface GameLayoutProps {
   randomIndex: number;
@@ -35,9 +35,26 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   const [gameEnded, setGameEnded] = useState(false);
   const [winningRound, setWinningRound] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [alreadyPlayed, setAlreadyPlayed] = useState(false);
   
   // State for current displayed image
   const [currentImage, setCurrentImage] = useState<string | null>(null);
+
+  // Check if the user has already played today's game
+  useEffect(() => {
+    if (randomIndex && !isLoading) {
+      const gameId = `game-${randomIndex}`;
+      const played = hasPlayedToday(gameId);
+      setAlreadyPlayed(played);
+      
+      // If already played, show the completed game state
+      if (played) {
+        setGameEnded(true);
+        // Show the original image since game is already completed
+        setCurrentImage(image);
+      }
+    }
+  }, [randomIndex, isLoading, image]);
 
   // Helper function to get image key from locked inputs
   const getImageKeyFromLocked = useCallback((locked: boolean[]) => {
@@ -101,7 +118,10 @@ const GameLayout: React.FC<GameLayoutProps> = ({
 
   // Find the fully pixelated image key on initial load
   useEffect(() => {
-    if (pixelationMap && Object.keys(pixelationMap).length > 0 && keywords.length > 0) {
+    if (alreadyPlayed && image) {
+      // If already played, always show the original image
+      setCurrentImage(image);
+    } else if (pixelationMap && Object.keys(pixelationMap).length > 0 && keywords.length > 0) {
       // Find a key where all segments are pixelated
       const allBlurred = Array(keywords.length).fill(false);
       updateCurrentImageFromLocked(allBlurred);
@@ -109,33 +129,44 @@ const GameLayout: React.FC<GameLayoutProps> = ({
       // No pixelation map, use the original image
       setCurrentImage(image);
     }
-  }, [pixelationMap, keywords, image, updateCurrentImageFromLocked]);
+  }, [pixelationMap, keywords, image, updateCurrentImageFromLocked, alreadyPlayed]);
 
   // Update current image whenever locked inputs change
   useEffect(() => {
     updateCurrentImageFromLocked(lockedInputs);
   }, [lockedInputs, updateCurrentImageFromLocked]);
 
-  // Rest of the code remains the same...
-  
   // Reset states when keywords change
   useEffect(() => {
-    setInputValues(Array(keywords.length).fill(""));
-    setLockedInputs(Array(keywords.length).fill(false));
-    setInvalidInputs(Array(keywords.length).fill(false));
-    setDialogOpen(false);
-    setRound(1);
-    setGuessHistory([]);
-    setGameEnded(false);
-    setWinningRound(null);
-  }, [keywords]);
+    if (!alreadyPlayed) {
+      setInputValues(Array(keywords.length).fill(""));
+      setLockedInputs(Array(keywords.length).fill(false));
+      setInvalidInputs(Array(keywords.length).fill(false));
+      setDialogOpen(false);
+      setRound(1);
+      setGuessHistory([]);
+      setGameEnded(false);
+      setWinningRound(null);
+    } else {
+      // If already played, set game to completed state
+      setGameEnded(true);
+      // Set all inputs as locked to show final state
+      setLockedInputs(Array(keywords.length).fill(true));
+      // Set input values to the actual keywords
+      setInputValues([...keywords]);
+    }
+  }, [keywords, alreadyPlayed]);
 
   // Show dialog when game ends
   useEffect(() => {
-    if (gameEnded) {
+    if (gameEnded && !alreadyPlayed) {
       setDialogOpen(true);
+      
+      // Mark the game as played when it ends naturally (not when loading with cookie)
+      const gameId = `game-${randomIndex}`;
+      markGameAsPlayed(gameId);
     }
-  }, [gameEnded]);
+  }, [gameEnded, alreadyPlayed, randomIndex]);
 
   // Handle Enter key to reopen dialog
   useEffect(() => {
@@ -163,7 +194,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   };
 
   const handleSubmit = () => {
-    if (gameEnded) return;
+    if (gameEnded || alreadyPlayed) return;
 
     // Check for empty fields
     const emptyFields = inputValues.map((value, index) => 
@@ -281,7 +312,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
       <Button 
         onClick={handleSubmit}
         type="submit"
-        disabled={gameEnded || inputValues.some((value, index) => !value.trim() && !lockedInputs[index])}
+        disabled={gameEnded || alreadyPlayed || inputValues.some((value, index) => !value.trim() && !lockedInputs[index])}
         variant="default"
         size="lg"
         className="mt-4 mb-4 w-full sm:w-auto sm:hidden md:hidden lg:hidden xl:hidden"
@@ -301,6 +332,7 @@ const GameLayout: React.FC<GameLayoutProps> = ({
             onOpenChange={setDialogOpen}
             finalMedia={image}
             isVideo={isVideo}
+            alreadyPlayed={alreadyPlayed}
           />
         )}
       </div>
