@@ -36,6 +36,10 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   const [winningRound, setWinningRound] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [alreadyPlayed, setAlreadyPlayed] = useState(false);
+  const [previousGameResult, setPreviousGameResult] = useState<{
+    winningRound: number | null;
+    guessSquares: string;
+  } | null>(null);
   
   // State for current displayed image
   const [currentImage, setCurrentImage] = useState<string | null>(null);
@@ -44,14 +48,19 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   useEffect(() => {
     if (randomIndex && !isLoading) {
       const gameId = `game-${randomIndex}`;
-      const played = hasPlayedToday(gameId);
-      setAlreadyPlayed(played);
+      const playedResult = hasPlayedToday(gameId);
       
-      // If already played, show the completed game state
-      if (played) {
-        setGameEnded(true);
+      if (playedResult) {
+        setAlreadyPlayed(true);
+        // Store the previous game result for display
+        setPreviousGameResult({
+          winningRound: playedResult.winningRound,
+          guessSquares: playedResult.guessSquares
+        });
+        
         // Show the original image since game is already completed
         setCurrentImage(image);
+        setGameEnded(true);
       }
     }
   }, [randomIndex, isLoading, image]);
@@ -164,9 +173,9 @@ const GameLayout: React.FC<GameLayoutProps> = ({
       
       // Mark the game as played when it ends naturally (not when loading with cookie)
       const gameId = `game-${randomIndex}`;
-      markGameAsPlayed(gameId);
+      markGameAsPlayed(gameId, winningRound, guessHistory);
     }
-  }, [gameEnded, alreadyPlayed, randomIndex]);
+  }, [gameEnded, alreadyPlayed, randomIndex, winningRound, guessHistory]);
 
   // Handle Enter key to reopen dialog
   useEffect(() => {
@@ -270,8 +279,14 @@ const GameLayout: React.FC<GameLayoutProps> = ({
   };
 
   const copyToClipboard = () => {
-    const recap = generateRecap(randomIndex, guessHistory, round);
-    navigator.clipboard.writeText(recap);
+    // Use the previous game result if available, otherwise generate new recap
+    if (alreadyPlayed && previousGameResult && previousGameResult.guessSquares) {
+      const recap = `unprompted ${randomIndex} ${previousGameResult.winningRound || 'X'}/5\n${previousGameResult.guessSquares}`;
+      navigator.clipboard.writeText(recap);
+    } else {
+      const recap = generateRecap(randomIndex, guessHistory, round);
+      navigator.clipboard.writeText(recap);
+    }
   };
 
   if (isLoading) {
@@ -323,10 +338,12 @@ const GameLayout: React.FC<GameLayoutProps> = ({
         <GuessHistorySection 
           guessHistory={guessHistory} 
           keywords={keywords}
+          previousGameSquares={previousGameResult?.guessSquares}
+          alreadyPlayed={alreadyPlayed}
         />
         {gameEnded && (
           <GameOverSection 
-            winningRound={winningRound} 
+            winningRound={alreadyPlayed && previousGameResult ? previousGameResult.winningRound : winningRound} 
             copyToClipboard={copyToClipboard}
             open={dialogOpen}
             onOpenChange={setDialogOpen}

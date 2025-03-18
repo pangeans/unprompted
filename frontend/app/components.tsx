@@ -270,11 +270,15 @@ interface GuessHistoryItem {
 interface GuessHistorySectionProps {
   guessHistory: GuessHistoryItem[][];
   keywords: string[];
+  previousGameSquares?: string | null;
+  alreadyPlayed?: boolean;
 }
 
 export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({ 
   guessHistory, 
-  keywords
+  keywords,
+  previousGameSquares = null,
+  alreadyPlayed = false
 }) => {
   const cleanWord = (word: string) => word.toLowerCase().trim().replace(/[.,!?]$/, '');
   const totalRounds = 5;
@@ -282,6 +286,73 @@ export const GuessHistorySection: React.FC<GuessHistorySectionProps> = ({
   // Modified class to reduce padding, prevent text wrapping, and use smaller font size
   const boxClassName = "w-[calc((85vw-1.5rem)/3)] sm:w-[100px] min-h-[36px] sm:min-h-[40px] px-1 sm:px-2 py-1 sm:py-1.5 rounded flex flex-col items-center justify-center relative text-xs sm:text-sm";
 
+  // If we have previous game squares and this is a returning player,
+  // parse and display those instead of the current game state
+  if (alreadyPlayed && previousGameSquares) {
+    const squareRows = previousGameSquares.trim().split('\n');
+    
+    return (
+      <div className="mt-4 space-y-2 sm:space-y-2.5 flex flex-col items-center w-[85vw] mx-auto">
+        {squareRows.map((row, rowIndex) => (
+          <div key={`prev-round-${rowIndex}`} className="flex gap-2 sm:gap-2.5 w-full justify-center">
+            {Array.from(row).map((square, squareIndex) => {
+              // Determine color based on emoji
+              const bgColor = square === "🟩" 
+                ? "#238c47" 
+                : square === "🟨" 
+                  ? "hsl(48, 65%, 50%)" 
+                  : "hsl(0, 0%, 40%)";
+              
+              return (
+                <div 
+                  key={`prev-square-${rowIndex}-${squareIndex}`}
+                  className={cn(
+                    boxClassName,
+                    "text-white transition-all duration-300 flex items-center justify-center"
+                  )}
+                  style={{ backgroundColor: bgColor }}
+                >
+                  <span className="text-xl">{square}</span>
+                </div>
+              );
+            })}
+            
+            {/* Fill remaining boxes if row has fewer squares than keywords */}
+            {row.length < keywords.length && Array(keywords.length - row.length).fill(null).map((_, i) => (
+              <div 
+                key={`empty-prev-${rowIndex}-${i}`}
+                className={cn(
+                  boxClassName,
+                  "bg-gray-500 opacity-30"
+                )}
+              >
+                &nbsp;
+              </div>
+            ))}
+          </div>
+        ))}
+        
+        {/* Fill remaining rows if we have fewer rows than totalRounds */}
+        {squareRows.length < totalRounds && Array(totalRounds - squareRows.length).fill(null).map((_, rowIndex) => (
+          <div key={`empty-prev-row-${rowIndex}`} className="flex gap-2 sm:gap-2.5 w-full justify-center">
+            {keywords.map((_, wordIndex) => (
+              <div 
+                key={`empty-prev-${rowIndex + squareRows.length}-${wordIndex}`}
+                className={cn(
+                  boxClassName,
+                  "bg-gray-500 opacity-30"
+                )}
+              >
+                &nbsp;
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Default rendering for active game
   return (
     <div className="mt-4 space-y-2 sm:space-y-2.5 flex flex-col items-center w-[85vw] mx-auto">
       {Array(totalRounds).fill(null).map((_, roundIndex) => {

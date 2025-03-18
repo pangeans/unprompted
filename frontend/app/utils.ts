@@ -22,23 +22,57 @@ interface GameData {
   pixelation_map?: Record<string, string> | null;  // Add pixelation_map to the interface
 }
 
-// Cookie handling utilities for game completion tracking
-export const hasPlayedToday = (gameId: string): boolean => {
+// Game result interface for storing in cookies
+interface GameResult {
+  completed: boolean;
+  winningRound: number | null;
+  guessSquares: string;  // Emoji representation of guesses
+}
+
+// Enhanced cookie handling utilities for game completion tracking
+export const hasPlayedToday = (gameId: string): GameResult | false => {
   if (typeof document === 'undefined') return false;
   
   const cookie = getCookie(`unprompted_played_${gameId}`);
-  return !!cookie;
+  if (!cookie) return false;
+  
+  try {
+    return JSON.parse(cookie);
+  } catch {
+    // For backward compatibility with old cookie format
+    return { completed: true, winningRound: null, guessSquares: '' };
+  }
 };
 
-export const markGameAsPlayed = (gameId: string): void => {
+export const markGameAsPlayed = (
+  gameId: string, 
+  winningRound: number | null, 
+  guessHistory: { word: string; score: number }[][]
+): void => {
   if (typeof document === 'undefined') return;
+
+  // Generate emoji squares for the guesses
+  const guessSquares = guessHistory.map(round => 
+    round.map(guess => {
+      if (guess.score === 1) return "🟩";
+      if (guess.score > 0 && guess.score < 1) return "🟨";
+      return "⬛";
+    }).join("")
+  ).join("\n");
+
+  // Create result object
+  const result: GameResult = {
+    completed: true,
+    winningRound,
+    guessSquares
+  };
 
   // Set cookie that expires at the end of the day (midnight)
   const now = new Date();
   const midnight = new Date(now);
   midnight.setHours(23, 59, 59, 999);
   
-  setCookie(`unprompted_played_${gameId}`, 'true', {
+  setCookie(`unprompted_played_${gameId}`, JSON.stringify(result), {
     expires: midnight,
     path: '/'
   });
