@@ -1,7 +1,0 @@
-{
-    "image": "/random-2.webp",
-    "prompt": "A dramatic movie poster for a goofy rotund mall cop. He is riding a Segway with a serious but funny expression. His name is most likely Paul Blart",
-    "keywords": ["poster", "mall", "cop", "Segway", "Blart"],
-    "speech_type": ["noun", "noun", "noun", "noun", "noun"],
-    "similarity_files": ["/poster.json", "/mall.json", "/cop.json", "/segway.json", "/blart.json"]
-}

@@ -1,2 +1,5 @@
 .venv/*
 .env
+backend/game-configs/*.webp
+backend/game-configs/*.mp4
+backend/game-configs/*.json
