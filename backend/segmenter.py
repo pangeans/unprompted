@@ -188,41 +188,48 @@ class Segmenter:
         
         # Function to handle mouse clicks
         def onclick(event):
-            if event.xdata is not None and event.ydata is not None:
-                x, y = int(event.xdata), int(event.ydata)
-                points.append([x, y])
-                plt.plot(x, y, 'ro', markersize=8)
-                plt.draw()
-                
-                # Update the mask prediction
-                if len(points) > 0:
-                    prompt_points = np.array(points)
-                    masks, _, _ = self.predictor.predict(
-                        point_coords=prompt_points,
-                        point_labels=np.ones(len(prompt_points)),
-                        multimask_output=False
-                    )
-                    # Display the mask overlay
-                    plt.clf()
-                    plt.imshow(self.image)
-                    plt.title(f"Segmentation for '{keyword}'. Press 'Accept' or 'Reset'.")
-                    plt.imshow(masks[0], alpha=0.5, cmap='jet')
-                    plt.plot(np.array(points)[:, 0], np.array(points)[:, 1], 'ro', markersize=8)
-                    plt.draw()
+            # Ignore clicks on the buttons
+            if event.inaxes and event.inaxes.get_label() == "main":  # Only process clicks on the main plot
+                if event.xdata is not None and event.ydata is not None:
+                    x, y = int(event.xdata), int(event.ydata)
+                    points.append([x, y])
                     
-                    # Store the latest mask
-                    nonlocal mask
-                    mask = masks[0]
+                    # Update the mask prediction
+                    if len(points) > 0:
+                        prompt_points = np.array(points)
+                        masks, _, _ = self.predictor.predict(
+                            point_coords=prompt_points,
+                            point_labels=np.ones(len(prompt_points)),
+                            multimask_output=False
+                        )
+                        # Display the mask overlay
+                        plt.clf()
+                        plt.imshow(self.image)
+                        plt.title(f"Segmentation for '{keyword}'. Press 'Accept' or 'Reset'.")
+                        plt.imshow(masks[0], alpha=0.5, cmap='jet')
+                        plt.plot(np.array(points)[:, 0], np.array(points)[:, 1], 'ro', markersize=8)
+                        
+                        # Reset the main plot label
+                        plt.gca().set_label("main")
+                        
+                        # Create new accept/reset buttons
+                        ax_accept = plt.axes([0.7, 0.05, 0.1, 0.075])
+                        ax_reset = plt.axes([0.81, 0.05, 0.1, 0.075])
+                        
+                        button_accept = Button(ax_accept, 'Accept')
+                        button_reset = Button(ax_reset, 'Reset')
+                        
+                        button_accept.on_clicked(on_accept)
+                        button_reset.on_clicked(on_reset)
+                        
+                        plt.draw()
+                        
+                        # Store the latest mask
+                        nonlocal mask
+                        mask = masks[0]
         
-        # Connect the click event
-        cid = plt.gcf().canvas.mpl_connect('button_press_event', onclick)
-        
-        # Add accept and reset buttons
-        ax_accept = plt.axes([0.7, 0.05, 0.1, 0.075])
-        ax_reset = plt.axes([0.81, 0.05, 0.1, 0.075])
-        
-        button_accept = Button(ax_accept, 'Accept')
-        button_reset = Button(ax_reset, 'Reset')
+        # Set the label for the main plot area
+        plt.gca().set_label("main")
         
         accepted = [False]
         
@@ -239,7 +246,30 @@ class Segmenter:
             plt.clf()
             plt.imshow(self.image)
             plt.title(f"Click on the image to mark the region for '{keyword}'. Press 'Accept' when done.")
+            plt.gca().set_label("main")  # Reset the main plot label
+            
+            # Create new accept/reset buttons after reset
+            ax_accept = plt.axes([0.7, 0.05, 0.1, 0.075])
+            ax_reset = plt.axes([0.81, 0.05, 0.1, 0.075])
+            
+            button_accept = Button(ax_accept, 'Accept')
+            button_reset = Button(ax_reset, 'Reset')
+            
+            button_accept.on_clicked(on_accept)
+            button_reset.on_clicked(on_reset)
+            
             plt.draw()
+        
+        # Connect the click event
+        fig = plt.gcf()
+        cid = fig.canvas.mpl_connect('button_press_event', onclick)
+        
+        # Add initial accept and reset buttons
+        ax_accept = plt.axes([0.7, 0.05, 0.1, 0.075])
+        ax_reset = plt.axes([0.81, 0.05, 0.1, 0.075])
+        
+        button_accept = Button(ax_accept, 'Accept')
+        button_reset = Button(ax_reset, 'Reset')
         
         button_accept.on_clicked(on_accept)
         button_reset.on_clicked(on_reset)

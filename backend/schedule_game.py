@@ -104,46 +104,54 @@ def process_game_media(
     Returns:
         Tuple of (original media URL, pixelation map with URLs)
     """
-    # Resolve the full path to the media file
-    full_path = Path(base_dir) / media_path.lstrip('/')
-    if not full_path.exists():
-        print(f"Error: Media file not found: {full_path}")
+    try:
+        # Resolve the full path to the media file
+        full_path = Path(base_dir) / media_path.lstrip('/')
+        if not full_path.exists():
+            print(f"Error: Media file not found: {full_path}")
+            return None, None
+            
+        # Upload original media
+        blob_name = f"game-images/{prompt_id}-{Path(media_path).name}"
+        media_url = upload_to_blob(full_path, blob_name)
+        if not media_url:
+            return None, None
+            
+        # Generate pixelated combinations based on file type
+        print("\nGenerating pixelated combinations...")
+        
+        try:
+            if is_video_file(full_path):
+                print(f"Processing video file: {full_path}")
+                pixelation_map = process_video_segmentation(
+                    str(full_path),
+                    keywords
+                )
+            else:
+                print(f"Processing image file: {full_path}")
+                pixelation_map = process_image_segmentation(
+                    str(full_path),
+                    keywords
+                )
+        except Exception as e:
+            print(f"Error during media processing: {e}")
+            return None, None
+            
+        if not pixelation_map:
+            print("Warning: Failed to generate pixelated combinations")
+            return media_url, None
+            
+        # Upload each pixelated combination
+        uploaded_map = {}
+        for filename, file_path in pixelation_map.items():
+            blob_name = f"game-images/{prompt_id}-pixelated-{filename}"
+            if url := upload_to_blob(file_path, blob_name):
+                uploaded_map[filename] = url
+        
+        return media_url, uploaded_map
+    except Exception as e:
+        print(f"Error in process_game_media: {e}")
         return None, None
-        
-    # Upload original media
-    blob_name = f"game-images/{prompt_id}-{Path(media_path).name}"
-    media_url = upload_to_blob(full_path, blob_name)
-    if not media_url:
-        return None, None
-        
-    # Generate pixelated combinations based on file type
-    print("\nGenerating pixelated combinations...")
-    
-    if is_video_file(full_path):
-        print(f"Processing video file: {full_path}")
-        pixelation_map = process_video_segmentation(
-            str(full_path),
-            keywords
-        )
-    else:
-        print(f"Processing image file: {full_path}")
-        pixelation_map = process_image_segmentation(
-            str(full_path),
-            keywords
-        )
-        
-    if not pixelation_map:
-        print("Warning: Failed to generate pixelated combinations")
-        return media_url, None
-        
-    # Upload each pixelated combination
-    uploaded_map = {}
-    for filename, file_path in pixelation_map.items():
-        blob_name = f"game-images/{prompt_id}-pixelated-{filename}"
-        if url := upload_to_blob(file_path, blob_name):
-            uploaded_map[filename] = url
-    
-    return media_url, uploaded_map
 
 def load_game_data(
     game_file: str | Path,
@@ -167,15 +175,25 @@ def load_game_data(
         # Check if the media is a video
         is_video = is_video_file(game_data.get('image', ''))
         
-        # Parse start time or use current time
+        # Parse start time with improved timezone handling
         try:
-            parsed_time = dateutil.parser.parse(start_time) if start_time else datetime.now(timezone.utc)
-            if parsed_time.tzinfo is None:
-                parsed_time = parsed_time.replace(tzinfo=timezone.utc)
+            if start_time:
+                # Parse the timestamp, preserving timezone info
+                parsed_time = dateutil.parser.parse(start_time)
+                # Ensure timezone is specified
+                if parsed_time.tzinfo is None:
+                    raise ValueError("Start time must include timezone information (e.g. 2024-01-01T15:30:00Z or 2024-01-01T10:30:00-05:00)")
+            else:
+                # Use current time in UTC
+                parsed_time = datetime.now(timezone.utc)
+            
+            # Always normalize to UTC for storage
+            parsed_time = parsed_time.astimezone(timezone.utc)
+            
         except Exception as e:
             print(f"Error parsing start time '{start_time}': {e}")
-            parsed_time = datetime.now(timezone.utc)
-        
+            return None
+            
         # Extract game data
         prompt_text = game_data.get('prompt', '')
         keywords = game_data.get('keywords', [])
@@ -200,7 +218,7 @@ def load_game_data(
                 
             conn.commit()
         
-        # Insert into database
+        # Insert into database with explicit timestamp format
         with conn.cursor() as cur:
             cur.execute(
                 """
@@ -208,25 +226,26 @@ def load_game_data(
                     prompt_id, prompt_text, keywords, speech_types, 
                     date_active, image_url, pixelation_map, media_type
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id
+                VALUES (%s, %s, %s, %s, %s::timestamptz, %s, %s, %s)
+                RETURNING id, date_active
                 """,
                 (
                     prompt_id, 
                     prompt_text, 
                     json.dumps(keywords), 
                     json.dumps(speech_types), 
-                    parsed_time, 
+                    parsed_time.isoformat(), 
                     image_url, 
                     json.dumps(pixelation_map) if pixelation_map else None,
                     'video' if is_video else 'image'
                 )
             )
-            game_id = cur.fetchone()[0]
+            game_id, stored_time = cur.fetchone()
             conn.commit()
             
-        print(f"Inserted new game record with ID {game_id}")
-        return game_id
+            print(f"Inserted new game record with ID {game_id}")
+            print(f"Stored activation time: {stored_time}")
+            return game_id
             
     except Exception as e:
         print(f"Error loading game data: {e}")
@@ -240,6 +259,7 @@ def load_similarity_data(
     prompt_id: str
 ) -> bool:
     """Generate and load similarity data for keywords into Redis."""
+    redis_client = None
     try:
         redis_client = connect_to_redis()
         
@@ -247,32 +267,31 @@ def load_similarity_data(
         print("\nGenerating similarity data...")
         similarity_data = generate_embeddings(keywords, 5000)
         
-        # Store in Redis
+        # Store in Redis using a single pipeline
+        pipeline = redis_client.pipeline()
+        
+        # Store similarity data for each keyword
         for keyword, similarities in similarity_data.items():
-            # Create Redis key
             redis_key = f"similarity:{keyword.lower()}"
-            
-            # Store similarity data
             print(f"Storing {len(similarities)} similarity entries for '{keyword}'")
-            pipeline = redis_client.pipeline()
-            pipeline.delete(redis_key)  # Clear existing data
+            
+            # Clear existing data and store new similarities
+            pipeline.delete(redis_key)
             for word, score in similarities.items():
                 pipeline.hset(redis_key, word, score)
-            pipeline.execute()
-            
+                
             # Add reference to game
-            redis_client.sadd(f"game:{prompt_id}:keywords", keyword.lower())
+            pipeline.sadd(f"game:{prompt_id}:keywords", keyword.lower())
         
         # Store keyword count
-        redis_client.set(f"game:{prompt_id}:count", len(keywords))
+        pipeline.set(f"game:{prompt_id}:count", len(keywords))
         
+        # Execute all commands in a single transaction
+        pipeline.execute()
         return True
-        
-    except Exception as e:
-        print(f"Error loading similarity data: {e}")
-        return False
+            
     finally:
-        if 'redis_client' in locals():
+        if redis_client:
             redis_client.close()
 
 def schedule_game(
@@ -296,54 +315,64 @@ def schedule_game(
     Returns:
         True if all operations succeeded, False otherwise
     """
-    print(f"\nScheduling new game from {game_file}")
-    
-    # Load game config
-    game_path = Path(base_dir) / game_file.lstrip('/')
-    game_data = load_json_data(str(game_path))
-    if not game_data:
-        print(f"Failed to load game config from {game_file}")
+    try:
+        print(f"\nScheduling new game from {game_file}")
+        
+        # Load game config
+        game_path = Path(base_dir) / game_file.lstrip('/')
+        try:
+            game_data = load_json_data(str(game_path))
+        except FileNotFoundError:
+            print(f"Error loading data from {game_path}: FileNotFoundError")
+            return False
+            
+        if not game_data:
+            print(f"Failed to load game config from {game_file}")
+            return False
+        
+        # Extract key data
+        prompt_id = Path(game_file).stem
+        image_path = game_data.get('image')
+        keywords = game_data.get('keywords', [])
+        
+        if not image_path or not keywords:
+            print("Error: Game config must specify 'image' and 'keywords'")
+            return False
+        
+        # Process the media and generate pixelated combinations
+        media_url, pixelation_map = process_game_media(
+            image_path,
+            keywords,
+            prompt_id,
+            base_dir
+        )
+        if not media_url:
+            print("Failed to process game media")
+            return False
+        
+        # Load game data into PostgreSQL
+        game_id = load_game_data(game_path, media_url, pixelation_map, start_time)
+        if not game_id:
+            print("Failed to load game data into PostgreSQL")
+            return False
+        
+        # Generate and load similarity data into Redis
+        redis_success = load_similarity_data(keywords, prompt_id)
+        if not redis_success:
+            print("Failed to load similarity data into Redis")
+            return False
+        
+        print(f"\nSuccessfully scheduled game {prompt_id} (ID: {game_id})")
+        if start_time:
+            print(f"Game will become active at: {start_time}")
+        else:
+            print("Game is active immediately")
+        
+        return True
+        
+    except Exception as e:
+        print(f"Error scheduling game: {e}")
         return False
-    
-    # Extract key data
-    prompt_id = Path(game_file).stem
-    image_path = game_data.get('image')
-    keywords = game_data.get('keywords', [])
-    
-    if not image_path or not keywords:
-        print("Error: Game config must specify 'image' and 'keywords'")
-        return False
-    
-    # Process the media and generate pixelated combinations
-    media_url, pixelation_map = process_game_media(
-        image_path,  # This parameter name is legacy but contains the media path
-        keywords,
-        prompt_id,
-        base_dir
-    )
-    if not media_url:
-        print("Failed to process game media")
-        return False
-    
-    # Load game data into PostgreSQL
-    game_id = load_game_data(game_path, media_url, pixelation_map, start_time)
-    if not game_id:
-        print("Failed to load game data into PostgreSQL")
-        return False
-    
-    # Generate and load similarity data into Redis
-    redis_success = load_similarity_data(keywords, prompt_id)
-    if not redis_success:
-        print("Failed to load similarity data into Redis")
-        return False
-    
-    print(f"\nSuccessfully scheduled game {prompt_id} (ID: {game_id})")
-    if start_time:
-        print(f"Game will become active at: {start_time}")
-    else:
-        print("Game is active immediately")
-    
-    return True
 
 def main():
     """Entry point for command line usage."""
